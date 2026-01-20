@@ -1,0 +1,87 @@
+name: pequenos_passos_pro
+description: App de desenvolvimento infantil.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter  
+
+  # --- BIBLIOTECAS DO APP ---
+  firebase_core: ^2.27.0
+  firebase_auth: ^4.17.8
+  cloud_firestore: ^4.15.8
+  firebase_storage: ^11.7.7
+
+  # Autenticação
+  google_sign_in: ^6.2.1
+  google_sign_in_web: ^0.12.4+2
+
+  # Utilidades
+  shared_preferences: ^2.2.2
+  intl: ^0.20.2 # Versão exigida pelo Flutter novo
+  google_fonts: ^6.1.0
+  lottie: ^3.1.0
+  url_launcher: ^6.3.0
+  
+  # Funcionalidades Específicas
+  fl_chart: ^0.66.2
+  audioplayers: ^5.2.1
+  image_picker: ^1.0.7
+  
+  # Notificações e Fuso Horário
+  flutter_local_notifications: ^17.0.0 
+  timezone: ^0.9.4
+  
+  # Mantemos a 3.0.0 que consertou o erro anterior do Registrar
+  flutter_timezone: ^3.0.0
+
+  # --- CORREÇÃO DESTE ERRO ---
+  # Atualizado para v8 para corrigir o erro de compilação Android
+  purchases_flutter: ^8.0.0 
+
+  # PDF e Impressão
+  pdf: ^3.10.8
+  printing: ^5.11.1
+
+  # Ícones
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+  change_app_package_name: ^1.1.0
+  flutter_native_splash: ^2.4.7
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/
+    - assets/images/
+    - assets/sounds/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon.png" 
+  min_sdk_android: 21 
+  remove_alpha_ios: true
+  adaptive_icon_background: "#6A9C89"
+  adaptive_icon_foreground: "assets/icon.png"
+
+flutter_native_splash:
+  color: "#0F2E20"
+  image: assets/logo.png
+  android_12:
+    image: assets/logo.png
+    color: "#0F2E20"
+    icon_background_color: "#0F2E20"
+  fullscreen: true
