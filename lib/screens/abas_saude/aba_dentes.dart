@@ -136,7 +136,7 @@ class _AbaDentesState extends State<AbaDentes> {
                           onTap: () => _abrirInfoDente(dente, nasceu),
                         ),
                       );
-                    }).toList(),
+                    }),
 
                     const Align(alignment: Alignment(0, -0.15), child: Text("SUPERIOR", style: TextStyle(color: Colors.black12, fontWeight: FontWeight.w900, fontSize: 10, letterSpacing: 2))),
                     const Align(alignment: Alignment(0, 0.15), child: Text("INFERIOR", style: TextStyle(color: Colors.black12, fontWeight: FontWeight.w900, fontSize: 10, letterSpacing: 2))),

@@ -307,27 +307,45 @@ class _ModalMedicamentoState extends State<_ModalMedicamento> {
     setState(() => _salvando = true);
     
     try {
+      // 1. Processa a Imagem
       String imagemBase64 = "";
       if (_imagemSelecionada != null) {
          final bytes = await _imagemSelecionada!.readAsBytes();
          imagemBase64 = base64Encode(bytes);
       }
 
-      // O SERVICE AGORA CUIDA DO AGENDAMENTO PARA GARANTIR O ID CORRETO
+      // 2. Gera um ID único para a notificação
+      // Usamos o timestamp atual para garantir unicidade
+      int idNotificacao = DateTime.now().millisecondsSinceEpoch % 100000;
+
+      // 3. Salva no Banco de Dados (Passando o ID da notificação junto)
+      // Nota: Certifique-se que seu MedicamentoService.adicionarMedicamento aceita 'idNotificacao'
+      // Se não aceitar, você precisará atualizar o MedicamentoService também.
       await MedicamentoService.adicionarMedicamento(
         nome: _nomeCtrl.text.trim(), 
         dosagem: _doseCtrl.text.trim(), 
         intervaloHoras: _intervaloHoras, 
         diasDuracao: _diasDuracao, 
         dataInicio: _dataInicio, 
-        imagemPath: imagemBase64 
+        imagemPath: imagemBase64,
+        idNotificacao: idNotificacao // <--- Novo campo importante
+      );
+
+      // 4. Agenda as Notificações (Usando a nova Janela Deslizante de 5 dias)
+      await NotificacaoService.agendarLembretesContinuos(
+        idBase: idNotificacao,
+        titulo: "Hora do Remédio 💊",
+        corpo: "Hora de tomar ${_nomeCtrl.text}",
+        dataInicioOriginal: _dataInicio,
+        intervaloHoras: _intervaloHoras,
+        diasBuffer: 5, // <--- Aqui garantimos que só agendamos 5 dias
       );
 
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
         setState(() => _salvando = false);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Erro ao salvar.")));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Erro: $e")));
       }
     }
   }
@@ -371,14 +389,14 @@ class _ModalMedicamentoState extends State<_ModalMedicamento> {
             const SizedBox(height: 20), 
             
             Row(children: [
-              Expanded(child: DropdownButtonFormField<int>(value: _intervaloHoras, decoration: const InputDecoration(labelText: "Intervalo", border: OutlineInputBorder()), items: [4, 6, 8, 12, 24].map((v) => DropdownMenuItem(value: v, child: Text("A cada ${v}h"))).toList(), onChanged: (v) => setState(() => _intervaloHoras = v!))), 
+              Expanded(child: DropdownButtonFormField<int>(initialValue: _intervaloHoras, decoration: const InputDecoration(labelText: "Intervalo", border: OutlineInputBorder()), items: [4, 6, 8, 12, 24].map((v) => DropdownMenuItem(value: v, child: Text("A cada ${v}h"))).toList(), onChanged: (v) => setState(() => _intervaloHoras = v!))), 
               const SizedBox(width: 15), 
               Expanded(child: InkWell(onTap: _selecionarInicio, child: InputDecorator(decoration: const InputDecoration(labelText: "1ª Dose", border: OutlineInputBorder(), prefixIcon: Icon(Icons.access_time)), child: Text(DateFormat("HH:mm").format(_dataInicio), style: const TextStyle(fontWeight: FontWeight.bold)))))
             ]), 
 
             const SizedBox(height: 15),
 
-            DropdownButtonFormField<int>(value: _diasDuracao, decoration: const InputDecoration(labelText: "Duração", border: OutlineInputBorder(), prefixIcon: Icon(Icons.date_range)), items: const [DropdownMenuItem(value: 3, child: Text("3 dias")), DropdownMenuItem(value: 5, child: Text("5 dias")), DropdownMenuItem(value: 7, child: Text("7 dias")), DropdownMenuItem(value: 10, child: Text("10 dias")), DropdownMenuItem(value: 14, child: Text("14 dias")), DropdownMenuItem(value: -1, child: Text("Uso Contínuo"))], onChanged: (v) => setState(() => _diasDuracao = v!)), 
+            DropdownButtonFormField<int>(initialValue: _diasDuracao, decoration: const InputDecoration(labelText: "Duração", border: OutlineInputBorder(), prefixIcon: Icon(Icons.date_range)), items: const [DropdownMenuItem(value: 3, child: Text("3 dias")), DropdownMenuItem(value: 5, child: Text("5 dias")), DropdownMenuItem(value: 7, child: Text("7 dias")), DropdownMenuItem(value: 10, child: Text("10 dias")), DropdownMenuItem(value: 14, child: Text("14 dias")), DropdownMenuItem(value: -1, child: Text("Uso Contínuo"))], onChanged: (v) => setState(() => _diasDuracao = v!)), 
             
             const SizedBox(height: 30), 
             

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'bebe_service.dart'; // Importa o serviço que sabe qual bebê está ativo
 
 class ProgressoService {
@@ -26,7 +27,7 @@ class ProgressoService {
 
       await docRef.set({'itens': lista}, SetOptions(merge: true));
     } catch (e) {
-      print("Erro ao salvar progresso: $e");
+      debugPrint("Erro ao salvar progresso: $e");
     }
   }
 

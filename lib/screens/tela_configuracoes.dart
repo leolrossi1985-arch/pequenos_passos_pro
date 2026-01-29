@@ -133,12 +133,15 @@ class _TelaConfiguracoesState extends State<TelaConfiguracoes> {
                     subtitle: const Text("Essencial para prematuros.", style: TextStyle(fontSize: 12)),
                     contentPadding: EdgeInsets.zero,
                     value: usarDPP,
-                    activeColor: Colors.teal,
+                    activeThumbColor: Colors.teal,
                     onChanged: (val) {
                       setStateModal(() {
                         usarDPP = val;
-                        if (!val) dataPrevista = null;
-                        else dataPrevista = dataNascimento; 
+                        if (!val) {
+                          dataPrevista = null;
+                        } else {
+                          dataPrevista = dataNascimento;
+                        } 
                       });
                     },
                   ),
@@ -450,7 +453,7 @@ class _TelaConfiguracoesState extends State<TelaConfiguracoes> {
                   secondary: const Icon(Icons.notifications_active, color: Colors.blue),
                   title: const Text("Notificações"),
                   value: _notificacoesAtivas,
-                  activeColor: Colors.teal,
+                  activeThumbColor: Colors.teal,
                   onChanged: _toggleNotificacoes,
                 )
               );
@@ -475,14 +478,14 @@ class _TelaConfiguracoesState extends State<TelaConfiguracoes> {
                   leading: const Icon(Icons.privacy_tip_outlined, color: Colors.grey),
                   title: const Text("Política de Privacidade"),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-                  onTap: () => _abrirLink('https://sites.google.com/view/zelo-privacidade'), 
+                  onTap: () => _abrirLink('https://sites.google.com/view/zelo-app-legal/in%C3%ADcio?authuser=2'), 
                 ),
                 const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.description_outlined, color: Colors.grey),
                   title: const Text("Termos de Uso"),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-                  onTap: () => _abrirLink('https://sites.google.com/view/zelo-privacidade'),
+                  onTap: () => _abrirLink('https://sites.google.com/view/zelo-app-legal/termos-de-uso?authuser=2'),
                 ),
               ],
             ),

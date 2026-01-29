@@ -1,8 +1,10 @@
 import 'dart:io';
-import 'dart:ui'; 
+import 'dart:ui';
+import 'dart:convert'; // Para Base64
+// Para Uint8List
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'; // Para kIsWeb
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 // --- IMPORTS ---
 import 'abas_ferramentas/tela_marcos.dart'; 
@@ -54,11 +56,38 @@ class _TelaFerramentasState extends State<TelaFerramentas> with SingleTickerProv
     }
   }
 
+  // --- LÓGICA DE IMAGEM HÍBRIDA (IGUAL TELA PRINCIPAL) ---
+  // --- LÓGICA DE IMAGEM HÍBRIDA CORRIGIDA ---
   ImageProvider? _getImagemPerfil() {
-    if (_fotoBebe != null && _fotoBebe!.isNotEmpty) {
-      if (kIsWeb) return NetworkImage(_fotoBebe!);
-      return FileImage(File(_fotoBebe!));
+    if (_fotoBebe == null || _fotoBebe!.isEmpty) return null;
+
+    // 1. Web ou URL (http)
+    if (kIsWeb || _fotoBebe!.startsWith('http')) {
+      return NetworkImage(_fotoBebe!);
     }
+
+    // 2. Base64 (Texto Longo)
+    // Caminhos de arquivo raramente passam de 200 caracteres.
+    // Uma foto em Base64 tem milhares. Essa é a melhor forma de distinguir.
+    if (_fotoBebe!.length > 200) {
+       try {
+         Uint8List bytes = base64Decode(_fotoBebe!);
+         return MemoryImage(bytes);
+       } catch (e) {
+         debugPrint("Erro ao decodificar imagem Base64: $e");
+       }
+    }
+
+    // 3. Arquivo Local (Caminho curto)
+    try {
+      final file = File(_fotoBebe!);
+      if (file.existsSync()) {
+        return FileImage(file);
+      }
+    } catch (e) {
+      // Ignora erros de arquivo não encontrado
+    }
+    
     return null;
   }
 
@@ -104,7 +133,6 @@ class _TelaFerramentasState extends State<TelaFerramentas> with SingleTickerProv
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                // Exibe "Ferramentas de Gabriel"
                                 "Ferramentas $_nomeBebe",
                                 style: TextStyle(
                                   fontSize: 24, 

@@ -1,11 +1,12 @@
 import 'dart:io';
 import 'dart:ui'; // Necessário para o Blur
+import 'dart:convert'; // Necessário para Base64
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'; 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -33,7 +34,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
   final List<String> _admins = ['leo.l.r@bol.com.br'];
 
   String _nomeBebe = "Carregando...";
-  String? _fotoBebe;
+  String? _fotoBebe; // Pode ser URL, Path ou Base64
   int _semanasDeVida = 0;
   String _faixaEtariaAtual = ""; 
   bool _temBebe = false;
@@ -64,7 +65,11 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
     _carregarDadosBebe();
   }
 
-  // ... (MÉTODOS DE CARREGAMENTO MANTIDOS IGUAIS) ...
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
   void _carregarDadosBebe() async {
     final dados = await BebeService.lerBebeAtivo();
     if (dados != null) {
@@ -82,7 +87,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
       if (mounted) {
         setState(() {
           _nomeBebe = dados['nome'];
-          _fotoBebe = dados['fotoUrl'];
+          _fotoBebe = dados['fotoUrl']; // Aqui vem o Path antigo ou o novo Base64
           _semanasDeVida = semanas;
           _faixaEtariaAtual = faixa;
           _temBebe = true;
@@ -101,11 +106,38 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
     }
   }
 
+  // --- CORREÇÃO PRINCIPAL: Carregamento de Imagem Híbrido ---
+  // --- LÓGICA DE IMAGEM HÍBRIDA CORRIGIDA ---
   ImageProvider? _getImagemPerfil() {
-    if (_fotoBebe != null && _fotoBebe!.isNotEmpty) {
-      if (kIsWeb) return NetworkImage(_fotoBebe!);
-      return FileImage(File(_fotoBebe!));
+    if (_fotoBebe == null || _fotoBebe!.isEmpty) return null;
+
+    // 1. Web ou URL (http)
+    if (kIsWeb || _fotoBebe!.startsWith('http')) {
+      return NetworkImage(_fotoBebe!);
     }
+
+    // 2. Base64 (Texto Longo)
+    // Caminhos de arquivo raramente passam de 200 caracteres.
+    // Uma foto em Base64 tem milhares. Essa é a melhor forma de distinguir.
+    if (_fotoBebe!.length > 200) {
+       try {
+         Uint8List bytes = base64Decode(_fotoBebe!);
+         return MemoryImage(bytes);
+       } catch (e) {
+         debugPrint("Erro ao decodificar imagem Base64: $e");
+       }
+    }
+
+    // 3. Arquivo Local (Caminho curto)
+    try {
+      final file = File(_fotoBebe!);
+      if (file.existsSync()) {
+        return FileImage(file);
+      }
+    } catch (e) {
+      // Ignora erros de arquivo não encontrado
+    }
+    
     return null;
   }
 
@@ -217,7 +249,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
   }
 
   Widget _construirImagem(String url, {double height = 80, double width = 80, Color? bgCor}) {
-    Color fundo = bgCor?.withOpacity(0.15) ?? Colors.teal.withOpacity(0.1);
+    Color fundo = bgCor?.withValues(alpha: 0.15) ?? Colors.teal.withValues(alpha: 0.1);
     if (url.startsWith('http')) {
       return Container(
         height: height, width: width, color: fundo, padding: const EdgeInsets.all(12),
@@ -253,7 +285,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
             decoration: BoxDecoration(
               color: isHoje ? const Color(0xFF2D3A3A) : Colors.white, // Dark para hoje (Premium)
               borderRadius: BorderRadius.circular(25),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 4))],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 4))],
               border: Border.all(color: isHoje ? Colors.transparent : Colors.grey.shade200),
             ),
             child: Column(
@@ -350,8 +382,8 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
-                    border: isConcluido ? Border.all(color: Colors.green.withOpacity(0.3), width: 1.5) : null
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                    border: isConcluido ? Border.all(color: Colors.green.withValues(alpha: 0.3), width: 1.5) : null
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start, 
@@ -364,7 +396,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                               borderRadius: const BorderRadius.vertical(top: Radius.circular(20)), 
                               child: Container(
                                 width: double.infinity, 
-                                color: atv.cor.withOpacity(0.08),
+                                color: atv.cor.withValues(alpha: 0.08),
                                 child: _construirImagem(atv.imagemUrl, bgCor: atv.cor)
                               )
                             ), 
@@ -375,7 +407,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
                                   height: 28, width: 28,
-                                  decoration: BoxDecoration(color: isConcluido ? Colors.green : Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4)]),
+                                  decoration: BoxDecoration(color: isConcluido ? Colors.green : Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)]),
                                   child: Icon(Icons.check, size: 16, color: isConcluido ? Colors.white : Colors.grey.shade300)
                                 )
                               )
@@ -388,7 +420,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0), 
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-                            Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: atv.cor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)), child: Text(atv.categoria.toUpperCase(), style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: atv.cor))),
+                            Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: atv.cor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)), child: Text(atv.categoria.toUpperCase(), style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: atv.cor))),
                             const SizedBox(height: 6), 
                             Expanded(child: Text(atv.titulo, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, height: 1.2, decoration: isConcluido ? TextDecoration.lineThrough : null, color: isConcluido ? Colors.grey : const Color(0xFF2D3A3A))))
                           ])
@@ -422,7 +454,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
             child: Container(
               width: 80, margin: const EdgeInsets.only(right: 16),
               child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Container(height: 60, width: 60, decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))], border: Border.all(color: Colors.white, width: 2)), child: Icon(cat['icone'], color: cor, size: 28)),
+                Container(height: 60, width: 60, decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))], border: Border.all(color: Colors.white, width: 2)), child: Icon(cat['icone'], color: cor, size: 28)),
                 const SizedBox(height: 8),
                 Text(cat['nome'], textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11, color: Colors.grey[800]), maxLines: 1, overflow: TextOverflow.ellipsis),
               ]),
@@ -466,16 +498,16 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(colors: _getCoresCard(_semanasDeVida), begin: Alignment.topLeft, end: Alignment.bottomRight), 
                                 borderRadius: BorderRadius.circular(28), 
-                                boxShadow: [BoxShadow(color: _getCoresCard(_semanasDeVida).first.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10))]
+                                boxShadow: [BoxShadow(color: _getCoresCard(_semanasDeVida).first.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 10))]
                               ), 
                               child: Stack(
                                 clipBehavior: Clip.none,
                                 children: [
-                                  Positioned(right: -20, top: -20, child: Icon(Icons.auto_awesome, color: Colors.white.withOpacity(0.15), size: 120)),
+                                  Positioned(right: -20, top: -20, child: Icon(Icons.auto_awesome, color: Colors.white.withValues(alpha: 0.15), size: 120)),
                                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                      Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: Colors.black.withOpacity(0.1), borderRadius: BorderRadius.circular(20)), child: const Text("DESENVOLVIMENTO", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1))), 
+                                      Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)), child: const Text("DESENVOLVIMENTO", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1))), 
                                       const SizedBox(height: 15), 
-                                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(_isGestante ? "Bebê a Caminho" : "${_semanasDeVida}ª Semana", style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white, height: 1)), Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle), child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 20))]), 
+                                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(_isGestante ? "Bebê a Caminho" : "$_semanasDeVidaª Semana", style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.white, height: 1)), Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle), child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 20))]), 
                                       const SizedBox(height: 5), 
                                       Text(_descobrirSalto(_semanasDeVida), style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w500))
                                   ]),
@@ -498,7 +530,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                         ),
 
                       if (!_isGestante) _buildCalendarioSemanal(),
-                      _buildSugestoesDoDia(), 
+                      _buildSugestoesDoDia(),
                       const SizedBox(height: 30),
                       if (_temBebe && !_isGestante) ...[
                         const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Text("Explorar", style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF2D3A3A)))),
@@ -519,7 +551,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Container(
-                  color: Colors.white.withOpacity(0.85),
+                  color: Colors.white.withValues(alpha: 0.85),
                   padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 10, 20, 15),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -533,7 +565,15 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                               child: Container(
                                 padding: const EdgeInsets.all(2),
                                 decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.teal.shade200, width: 2)),
-                                child: CircleAvatar(radius: 20, backgroundColor: Colors.grey[200], backgroundImage: _getImagemPerfil(), child: _getImagemPerfil() == null ? const Icon(Icons.face, color: Colors.grey) : null),
+                                // AQUI APLICAMOS A NOVA LÓGICA DO AVATAR
+                                child: CircleAvatar(
+                                  radius: 20, 
+                                  backgroundColor: Colors.grey[200], 
+                                  backgroundImage: _getImagemPerfil(), 
+                                  child: _getImagemPerfil() == null 
+                                    ? const Icon(Icons.face, color: Colors.grey) 
+                                    : null
+                                ),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -553,7 +593,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                             }
                           ),
                           Container(
-                            decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: Colors.grey.withOpacity(0.2))),
+                            decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: Colors.grey.withValues(alpha: 0.2))),
                             child: IconButton(icon: const Icon(Icons.settings_outlined, color: Colors.black87, size: 20), tooltip: "Configurações", onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TelaConfiguracoes()))),
                           )
                         ],
@@ -566,6 +606,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
           ),
         ],
       ),
+      // floatingActionButton removido daqui e movido para TelaBase para não ficar atrás da navbar
     );
   }
 }
@@ -597,7 +638,7 @@ class TelaListaPorCategoria extends StatelessWidget {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: BorderSide(color: Colors.grey.shade200)), 
                 child: ListTile(
                   contentPadding: const EdgeInsets.all(10), 
-                  leading: ClipRRect(borderRadius: BorderRadius.circular(10), child: Container(color: cor.withOpacity(0.1), width: 60, height: 60, padding: const EdgeInsets.all(5), child: Image.network(atv.imagemUrl, fit: BoxFit.contain, errorBuilder: (_,__,___)=> Icon(Icons.image, color: cor)))), 
+                  leading: ClipRRect(borderRadius: BorderRadius.circular(10), child: Container(color: cor.withValues(alpha: 0.1), width: 60, height: 60, padding: const EdgeInsets.all(5), child: Image.network(atv.imagemUrl, fit: BoxFit.contain, errorBuilder: (_,__,___)=> Icon(Icons.image, color: cor)))), 
                   title: Text(atv.titulo, style: const TextStyle(fontWeight: FontWeight.bold)), 
                   subtitle: Text(atv.descricaoCurta, maxLines: 2, overflow: TextOverflow.ellipsis), 
                   trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey), 

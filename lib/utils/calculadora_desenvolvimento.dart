@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 class CalculadoraDesenvolvimento {
   
   // Definição dos Estados
-  static const String STATUS_CRISE = 'raio';   // Salto (Tempestade/Crise)
-  static const String STATUS_SOL = 'sol';      // Fase Ensolarada (Habilidade recém-adquirida)
-  static const String STATUS_NUVEM = 'nuvem';  // Desenvolvimento Motor/Linguagem (Fases de treino)
+  static const String statusCrise = 'raio';   // Salto (Tempestade/Crise)
+  static const String statusSol = 'sol';      // Fase Ensolarada (Habilidade recém-adquirida)
+  static const String statusNuvem = 'nuvem';  // Desenvolvimento Motor/Linguagem (Fases de treino)
 
   // ===========================================================================
   // 1. CÁLCULO DA IDADE CORRIGIDA (A REGRA DE OURO)
@@ -43,67 +43,69 @@ class CalculadoraDesenvolvimento {
   static Map<String, String> getDadosSemana(int semana) {
     
     // --- RECÉM-NASCIDO ---
-    if (semana <= 3) return {'status': STATUS_NUVEM, 'titulo': 'Adaptação', 'desc': 'Regulação fisiológica. O bebê está aprendendo a viver fora do útero.'};
+    if (semana <= 3) return {'status': statusNuvem, 'titulo': 'Adaptação', 'desc': 'Regulação fisiológica. O bebê está aprendendo a viver fora do útero.'};
     
     // --- SALTO 1 ---
-    if (semana >= 4 && semana <= 5) return {'status': STATUS_CRISE, 'titulo': 'Salto 1: Sensações', 'desc': 'Metabolismo muda. Ele sente tudo mais intensamente.'};
-    if (semana == 6) return {'status': STATUS_SOL, 'titulo': 'O Primeiro Sorriso', 'desc': 'O bebê está mais acordado e responde com sorrisos sociais.'};
+    if (semana >= 4 && semana <= 5) return {'status': statusCrise, 'titulo': 'Salto 1: Sensações', 'desc': 'Metabolismo muda. Ele sente tudo mais intensamente.'};
+    if (semana == 6) return {'status': statusSol, 'titulo': 'O Primeiro Sorriso', 'desc': 'O bebê está mais acordado e responde com sorrisos sociais.'};
 
     // --- SALTO 2 ---
-    if (semana >= 7 && semana <= 9) return {'status': STATUS_CRISE, 'titulo': 'Salto 2: Padrões', 'desc': 'Percebe padrões de luz e som. O mundo parece caótico.'};
-    if (semana == 10) return {'status': STATUS_SOL, 'titulo': 'Descobrindo as Mãos', 'desc': 'Fascinação por rostos, luzes e movimentos das próprias mãos.'};
+    if (semana >= 7 && semana <= 9) return {'status': statusCrise, 'titulo': 'Salto 2: Padrões', 'desc': 'Percebe padrões de luz e som. O mundo parece caótico.'};
+    if (semana == 10) return {'status': statusSol, 'titulo': 'Descobrindo as Mãos', 'desc': 'Fascinação por rostos, luzes e movimentos das próprias mãos.'};
 
     // --- SALTO 3 ---
-    if (semana >= 11 && semana <= 12) return {'status': STATUS_CRISE, 'titulo': 'Salto 3: Transições', 'desc': 'Percebe nuances na voz e movimentos fluidos. Luta contra o sono.'};
-    if (semana == 13) return {'status': STATUS_SOL, 'titulo': 'O Tagarela', 'desc': 'Faz bolhinhas, ri alto, agita o corpo e "conversa".'};
+    if (semana >= 11 && semana <= 12) return {'status': statusCrise, 'titulo': 'Salto 3: Transições', 'desc': 'Percebe nuances na voz e movimentos fluidos. Luta contra o sono.'};
+    if (semana == 13) return {'status': statusSol, 'titulo': 'O Tagarela', 'desc': 'Faz bolhinhas, ri alto, agita o corpo e "conversa".'};
 
     // --- SALTO 4 ---
-    if (semana >= 14 && semana <= 19) return {'status': STATUS_CRISE, 'titulo': 'Salto 4: Eventos', 'desc': 'Salto longo. Regressão de sono e mudanças cognitivas bruscas.'};
-    if (semana == 20) return {'status': STATUS_SOL, 'titulo': 'Mundo na Boca', 'desc': 'Rola, pega objetos com as duas mãos e leva tudo à boca.'};
+    if (semana >= 14 && semana <= 19) return {'status': statusCrise, 'titulo': 'Salto 4: Eventos', 'desc': 'Salto longo. Regressão de sono e mudanças cognitivas bruscas.'};
+    if (semana == 20) return {'status': statusSol, 'titulo': 'Mundo na Boca', 'desc': 'Rola, pega objetos com as duas mãos e leva tudo à boca.'};
 
     // --- INTERVALO PÓS-SALTO 4 ---
-    if (semana == 21) return {'status': STATUS_NUVEM, 'titulo': 'Ginástica', 'desc': 'Fase de treino motor intenso. Quer rolar o tempo todo.'};
+    if (semana == 21) return {'status': statusNuvem, 'titulo': 'Ginástica', 'desc': 'Fase de treino motor intenso. Quer rolar o tempo todo.'};
 
     // --- SALTO 5 ---
-    if (semana >= 22 && semana <= 25) return {'status': STATUS_CRISE, 'titulo': 'Salto 5: Relações', 'desc': 'Entende distância. Angústia da separação e medo de estranhos.'};
-    if (semana == 26 || semana == 27) return {'status': STATUS_SOL, 'titulo': 'Causa e Efeito', 'desc': 'Entende que objetos continuam existindo e que ações geram reações.'};
+    if (semana >= 22 && semana <= 25) return {'status': statusCrise, 'titulo': 'Salto 5: Relações', 'desc': 'Entende distância. Angústia da separação e medo de estranhos.'};
+    if (semana == 26 || semana == 27) return {'status': statusSol, 'titulo': 'Causa e Efeito', 'desc': 'Entende que objetos continuam existindo e que ações geram reações.'};
 
     // --- INTERVALO MOTOR (A Grande Fase do Chão) ---
-    if (semana >= 28 && semana <= 32) return {'status': STATUS_NUVEM, 'titulo': 'Rumo a Sentar', 'desc': 'Focadíssimo em tentar sentar sozinho, se arrastar ou engatinhar.'};
+    if (semana >= 28 && semana <= 32) return {'status': statusNuvem, 'titulo': 'Rumo a Sentar', 'desc': 'Focadíssimo em tentar sentar sozinho, se arrastar ou engatinhar.'};
 
     // --- SALTO 6 ---
-    if (semana >= 33 && semana <= 36) return {'status': STATUS_CRISE, 'titulo': 'Salto 6: Categorias', 'desc': 'Classifica o mundo: comida, bicho, brinquedo. Examina detalhes.'};
-    if (semana == 37 || semana == 38) return {'status': STATUS_SOL, 'titulo': 'O Investigador', 'desc': 'Reconhece formas, faz caretas no espelho e imita gestos.'};
+    if (semana >= 33 && semana <= 36) return {'status': statusCrise, 'titulo': 'Salto 6: Categorias', 'desc': 'Classifica o mundo: comida, bicho, brinquedo. Examina detalhes.'};
+    if (semana == 37 || semana == 38) return {'status': statusSol, 'titulo': 'O Investigador', 'desc': 'Reconhece formas, faz caretas no espelho e imita gestos.'};
 
     // --- INTERVALO PRÉ-ANDAR ---
-    if (semana >= 39 && semana <= 40) return {'status': STATUS_NUVEM, 'titulo': 'Ficar em Pé', 'desc': 'Treinando ficar em pé apoiado nos móveis. Força nas pernas.'};
+    if (semana >= 39 && semana <= 40) return {'status': statusNuvem, 'titulo': 'Ficar em Pé', 'desc': 'Treinando ficar em pé apoiado nos móveis. Força nas pernas.'};
 
     // --- SALTO 7 ---
-    if (semana >= 41 && semana <= 45) return {'status': STATUS_CRISE, 'titulo': 'Salto 7: Sequências', 'desc': 'Aprende passo-a-passo. Quer fazer sozinho. Primeiras birras.'};
-    if (semana == 46 || semana == 47) return {'status': STATUS_SOL, 'titulo': 'O Construtor', 'desc': 'Monta torres, aponta para o que quer e tenta comer sozinho.'};
+    if (semana >= 41 && semana <= 45) return {'status': statusCrise, 'titulo': 'Salto 7: Sequências', 'desc': 'Aprende passo-a-passo. Quer fazer sozinho. Primeiras birras.'};
+    if (semana == 46 || semana == 47) return {'status': statusSol, 'titulo': 'O Construtor', 'desc': 'Monta torres, aponta para o que quer e tenta comer sozinho.'};
 
     // --- INTERVALO PRÉ-ANIVERSÁRIO ---
-    if (semana >= 48 && semana <= 49) return {'status': STATUS_NUVEM, 'titulo': 'Cruising', 'desc': 'Anda segurando nos móveis. Primeiras palavras podem surgir.'};
+    if (semana >= 48 && semana <= 49) return {'status': statusNuvem, 'titulo': 'Cruising', 'desc': 'Anda segurando nos móveis. Primeiras palavras podem surgir.'};
 
     // --- SALTO 8 ---
-    if (semana >= 50 && semana <= 54) return {'status': STATUS_CRISE, 'titulo': 'Salto 8: Programas', 'desc': 'Entende o "todo" (lavar louça, ir passear). Testa limites.'};
-    if (semana == 55 || semana == 56) return {'status': STATUS_SOL, 'titulo': 'O Ajudante', 'desc': 'Ajuda a guardar coisas, traz objetos e entende instruções.'};
+    if (semana >= 50 && semana <= 54) return {'status': statusCrise, 'titulo': 'Salto 8: Programas', 'desc': 'Entende o "todo" (lavar louça, ir passear). Testa limites.'};
+    if (semana == 55 || semana == 56) return {'status': statusSol, 'titulo': 'O Ajudante', 'desc': 'Ajuda a guardar coisas, traz objetos e entende instruções.'};
 
     // --- INTERVALO TODDLER ---
-    if (semana >= 57 && semana <= 58) return {'status': STATUS_NUVEM, 'titulo': 'Independência', 'desc': 'Quer fazer tudo sozinho (vestir, comer, andar).'};
+    if (semana >= 57 && semana <= 58) return {'status': statusNuvem, 'titulo': 'Independência', 'desc': 'Quer fazer tudo sozinho (vestir, comer, andar).'};
 
     // --- SALTO 9 ---
-    if (semana >= 59 && semana <= 63) return {'status': STATUS_CRISE, 'titulo': 'Salto 9: Princípios', 'desc': 'Estratégias, negociação, drama e posse ("é meu!").'};
-    if (semana == 64 || semana == 65) return {'status': STATUS_SOL, 'titulo': 'O Ator', 'desc': 'Entende piadas, faz graça, pensa antes de agir.'};
+    if (semana >= 59 && semana <= 63) return {'status': statusCrise, 'titulo': 'Salto 9: Princípios', 'desc': 'Estratégias, negociação, drama e posse ("é meu!").'};
+    if (semana == 64 || semana == 65) return {'status': statusSol, 'titulo': 'O Ator', 'desc': 'Entende piadas, faz graça, pensa antes de agir.'};
 
     // --- INTERVALO LINGUAGEM ---
-    if (semana >= 66 && semana <= 69) return {'status': STATUS_NUVEM, 'titulo': 'Explosão Verbal', 'desc': 'Aprendendo muitas palavras novas e correndo com firmeza.'};
+    if (semana >= 66 && semana <= 69) return {'status': statusNuvem, 'titulo': 'Explosão Verbal', 'desc': 'Aprendendo muitas palavras novas e correndo com firmeza.'};
 
     // --- SALTO 10 ---
-    if (semana >= 70 && semana <= 74) return {'status': STATUS_CRISE, 'titulo': 'Salto 10: Sistemas', 'desc': 'Consciência moral, entende o certo e errado, manipula situações.'};
+    if (semana >= 70 && semana <= 74) return {'status': statusCrise, 'titulo': 'Salto 10: Sistemas', 'desc': 'Consciência moral, entende o certo e errado, manipula situações.'};
     
     // --- PÓS 75 SEMANAS ---
-    return {'status': STATUS_SOL, 'titulo': 'Personalidade', 'desc': 'Empatia, frases completas, noção de tempo e vontade própria.'};
+    if (semana >= 75) return {'status': statusSol, 'titulo': 'Personalidade', 'desc': 'Empatia, frases completas, noção de tempo e vontade própria.'};
+    
+    return {'status': statusSol, 'titulo': 'Desenvolvimento', 'desc': 'Acompanhando o crescimento.'};
   }
 
   // --- Helpers Visuais ---
@@ -113,8 +115,8 @@ class CalculadoraDesenvolvimento {
   static List<Color> getCoresCard(int semana) {
     String status = getStatusSemana(semana);
     switch (status) {
-      case STATUS_CRISE: return [const Color(0xFFFF9800), const Color(0xFFF57C00)]; // Laranja
-      case STATUS_SOL:   return [const Color(0xFF6A9C89), const Color(0xFF4E8D7C)]; // Verde
+      case statusCrise: return [const Color(0xFFFF9800), const Color(0xFFF57C00)]; // Laranja
+      case statusSol:   return [const Color(0xFF6A9C89), const Color(0xFF4E8D7C)]; // Verde
       default:           return [const Color(0xFF78909C), const Color(0xFF546E7A)]; // Azul Acinzentado
     }
   }
@@ -122,8 +124,8 @@ class CalculadoraDesenvolvimento {
   static IconData getIcone(int semana) {
     String status = getStatusSemana(semana);
     switch (status) {
-      case STATUS_CRISE: return Icons.flash_on;
-      case STATUS_SOL:   return Icons.wb_sunny;
+      case statusCrise: return Icons.flash_on;
+      case statusSol:   return Icons.wb_sunny;
       default:           return Icons.fitness_center; // Ícone de "treino"
     }
   }

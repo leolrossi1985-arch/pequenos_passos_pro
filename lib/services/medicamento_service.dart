@@ -1,96 +1,65 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'bebe_service.dart';
-import 'notificacao_service.dart';
 
 class MedicamentoService {
   
-  // Adiciona um novo tratamento e agenda as notificações com IDs recuperáveis
+  // Apenas SALVA no banco. O agendamento é feito pela UI ou SincronizacaoService.
   static Future<void> adicionarMedicamento({
     required String nome,
     required String dosagem,
     required int intervaloHoras,
     required int diasDuracao,
     required DateTime dataInicio,
-    String imagemPath = "", 
+    required String imagemPath,
+    required int idNotificacao, // <--- NOVO: Recebe o ID gerado na tela
   }) async {
     final bebeRef = await BebeService.getRefBebeAtivo();
     if (bebeRef == null) {
-      print("Erro: Nenhum bebê ativo encontrado.");
+      debugPrint("Erro: Nenhum bebê ativo encontrado.");
       return;
     }
 
     try {
-      // 1. Salva no Firebase primeiro para obter o ID único do documento
-      DocumentReference docRef = await bebeRef.collection('medicamentos').add({
-        'nome': nome,
+      // Calcula data fim (ou null se for contínuo)
+      String? dataFimIso;
+      if (diasDuracao > 0) {
+         dataFimIso = dataInicio.add(Duration(days: diasDuracao)).toIso8601String();
+      }
+
+      // Salva no Firebase com todos os dados necessários para o Sincronizador
+      await bebeRef.collection('medicamentos').add({
+        'nome': nome, // Para compatibilidade visual
+        'nome_medicamento': nome, // Para o SincronizacaoService ler
         'dosagem': dosagem,
-        'intervalo': intervaloHoras,
+        
+        // Dados de tempo cruciais
+        'intervalo': intervaloHoras, 
+        'frequencia_horas': intervaloHoras, // Para o SincronizacaoService
         'diasDuracao': diasDuracao,
+        
+        // Datas
         'inicio': dataInicio.toIso8601String(),
-        'imagemPath': imagemPath, // Salva o caminho local
+        'data_inicio': dataInicio.toIso8601String(), // Para o SincronizacaoService
+        'data_fim': dataFimIso, 
+        
+        // Controle
+        'imagemPath': imagemPath,
+        'id_notificacao': idNotificacao, // <--- Salva o ID base aqui!
         'ativo': true, 
+        'uso_continuo': diasDuracao == -1,
         'criado_em': FieldValue.serverTimestamp(),
       });
 
-      // 2. Agenda Notificações usando o ID do documento como base
-      // Isso é crucial para poder cancelar depois.
-      await _agendarNotificacoes(
-        docId: docRef.id,
-        nome: nome,
-        dosagem: dosagem,
-        inicio: dataInicio,
-        intervalo: intervaloHoras,
-        dias: diasDuracao
-      );
+      debugPrint("✅ Medicamento salvo no banco com ID Notificação: $idNotificacao");
 
     } catch (e) {
-      print("Erro ao salvar medicamento: $e");
-      throw e; 
+      debugPrint("Erro ao salvar medicamento: $e");
+      rethrow; 
     }
-  }
-
-  // Lógica privada para agendar os alarmes
-  static Future<void> _agendarNotificacoes({
-    required String docId,
-    required String nome,
-    required String dosagem,
-    required DateTime inicio,
-    required int intervalo,
-    required int dias,
-  }) async {
-    // Se for uso contínuo (-1), limitamos a 30 dias de agendamento por segurança
-    int diasTotal = dias == -1 ? 30 : dias;
-    
-    DateTime dataAtual = inicio;
-    DateTime dataFim = inicio.add(Duration(days: diasTotal));
-    
-    // O ID Base é o hash do ID do Firebase (transforma texto em número único)
-    int idBase = docId.hashCode; 
-    int count = 0;
-
-    // Loop para criar os alarmes
-    // Limitamos a 55 para não estourar o limite de alarmes do Android/iOS
-    while (dataAtual.isBefore(dataFim) && count < 55) {
-      
-      // Só agenda se for no futuro
-      if (dataAtual.isAfter(DateTime.now())) {
-        await NotificacaoService.agendarNotificacao(
-          id: idBase + count, // Cria IDs sequenciais: 12345, 12346, 12347...
-          titulo: "Hora do Remédio: $nome 💊", 
-          corpo: "Dose: $dosagem", 
-          dataHora: dataAtual
-        );
-      }
-      
-      // Avança para o próximo horário
-      dataAtual = dataAtual.add(Duration(hours: intervalo));
-      count++;
-    }
-    print("Agendadas $count notificações para o remédio $nome (Base ID: $idBase)");
   }
 
   // Finaliza o tratamento (apenas atualiza o status no banco)
-  // O cancelamento dos alarmes é feito na UI (AbaRemedios) chamando NotificacaoService.cancelarNotificacao
   static Future<void> finalizarMedicamento(String id) async {
     final bebeRef = await BebeService.getRefBebeAtivo();
     if (bebeRef == null) return;

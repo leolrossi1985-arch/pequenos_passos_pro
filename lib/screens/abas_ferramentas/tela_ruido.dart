@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:ui'; 
 import '../../services/sono_global_service.dart';
 
 class TelaRuido extends StatefulWidget {

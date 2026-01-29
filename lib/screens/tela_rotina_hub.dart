@@ -1,8 +1,9 @@
 import 'dart:io';
 import 'dart:ui'; // Necessário para o efeito de vidro (Blur)
+import 'dart:convert'; // Para Base64
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'; // Para kIsWeb
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 // --- IMPORTS DAS TELAS INTERNAS ---
 import 'tela_rotina_geral.dart';
@@ -53,11 +54,38 @@ class _TelaRotinaHubState extends State<TelaRotinaHub> with SingleTickerProvider
     }
   }
 
+  // --- LÓGICA DE IMAGEM HÍBRIDA (IGUAL TELA PRINCIPAL) ---
+  // --- LÓGICA DE IMAGEM HÍBRIDA CORRIGIDA ---
   ImageProvider? _getImagemPerfil() {
-    if (_fotoBebe != null && _fotoBebe!.isNotEmpty) {
-      if (kIsWeb) return NetworkImage(_fotoBebe!);
-      return FileImage(File(_fotoBebe!));
+    if (_fotoBebe == null || _fotoBebe!.isEmpty) return null;
+
+    // 1. Web ou URL (http)
+    if (kIsWeb || _fotoBebe!.startsWith('http')) {
+      return NetworkImage(_fotoBebe!);
     }
+
+    // 2. Base64 (Texto Longo)
+    // Caminhos de arquivo raramente passam de 200 caracteres.
+    // Uma foto em Base64 tem milhares. Essa é a melhor forma de distinguir.
+    if (_fotoBebe!.length > 200) {
+       try {
+         Uint8List bytes = base64Decode(_fotoBebe!);
+         return MemoryImage(bytes);
+       } catch (e) {
+         debugPrint("Erro ao decodificar imagem Base64: $e");
+       }
+    }
+
+    // 3. Arquivo Local (Caminho curto)
+    try {
+      final file = File(_fotoBebe!);
+      if (file.existsSync()) {
+        return FileImage(file);
+      }
+    } catch (e) {
+      // Ignora erros de arquivo não encontrado
+    }
+    
     return null;
   }
 
@@ -78,15 +106,15 @@ class _TelaRotinaHubState extends State<TelaRotinaHub> with SingleTickerProvider
             children: [
               Padding(
                 padding: EdgeInsets.only(top: headerHeight), 
-                child: TelaRotinaGeral() 
+                child: const TelaRotinaGeral() 
               ),
               Padding(
                 padding: EdgeInsets.only(top: headerHeight), 
-                child: TelaAlimentacao() 
+                child: const TelaAlimentacao() 
               ),
               Padding(
                 padding: EdgeInsets.only(top: headerHeight), 
-                child: TelaDiario() 
+                child: const TelaDiario() 
               ),
             ],
           ),
@@ -98,7 +126,7 @@ class _TelaRotinaHubState extends State<TelaRotinaHub> with SingleTickerProvider
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Container(
-                  color: Colors.white.withOpacity(0.85),
+                  color: Colors.white.withValues(alpha: 0.85),
                   padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 10, 20, 20),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -111,13 +139,12 @@ class _TelaRotinaHubState extends State<TelaRotinaHub> with SingleTickerProvider
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                // --- ALTERAÇÃO AQUI ---
-                                // Agora exibe "Rotina de [Nome]"
+                                // Exibe "Rotina de [Nome]"
                                 _temBebe ? "Rotina de $_nomeBebe" : "Rotina do Bebê",
                                 style: TextStyle(
                                   fontSize: 24, 
                                   fontWeight: FontWeight.w900, 
-                                  color: Colors.black.withOpacity(0.85),
+                                  color: Colors.black.withValues(alpha: 0.85),
                                   letterSpacing: -0.5
                                 ),
                               ),
@@ -172,7 +199,7 @@ class _TelaRotinaHubState extends State<TelaRotinaHub> with SingleTickerProvider
                             borderRadius: BorderRadius.circular(21),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.08), 
+                                color: Colors.black.withValues(alpha: 0.08), 
                                 blurRadius: 8, 
                                 offset: const Offset(0, 2)
                               )

@@ -123,8 +123,9 @@ class _TelaDiarioState extends State<TelaDiario> {
     if (base64Img != null && base64Img.isNotEmpty) {
       try { imageProvider = ImageHelper.base64ToImage(base64Img); } catch (e) { print("Erro imagem: $e"); }
     } else if (localPath != null && localPath.isNotEmpty) {
-      if (kIsWeb) imageProvider = NetworkImage(localPath);
-      else if (File(localPath).existsSync()) imageProvider = FileImage(File(localPath));
+      if (kIsWeb) {
+        imageProvider = NetworkImage(localPath);
+      } else if (File(localPath).existsSync()) imageProvider = FileImage(File(localPath));
     }
 
     return IntrinsicHeight(

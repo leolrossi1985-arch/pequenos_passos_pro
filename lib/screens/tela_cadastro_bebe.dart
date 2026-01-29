@@ -232,7 +232,7 @@ class _TelaCadastroBebeState extends State<TelaCadastroBebe> {
                   title: const Text("Nasceu Prematuro?", style: TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: const Text("Importante para corrigir os saltos de desenvolvimento."),
                   value: _isPrematuro,
-                  activeColor: Colors.teal,
+                  activeThumbColor: Colors.teal,
                   onChanged: (val) {
                     setState(() {
                       _isPrematuro = val;

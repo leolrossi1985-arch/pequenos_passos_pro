@@ -194,7 +194,7 @@ class _AbaVacinasState extends State<AbaVacinas> {
                       ],
                     ),
                   );
-                }).toList()
+                })
               ],
             );
           }

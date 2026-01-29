@@ -46,7 +46,7 @@ class _TelaSaltoState extends State<TelaSalto> {
   Widget build(BuildContext context) {
     // Dados
     final dadosBase = CalculadoraDesenvolvimento.getDadosSemana(widget.semana);
-    final status = dadosBase['status'] ?? CalculadoraDesenvolvimento.STATUS_NUVEM;
+    final status = dadosBase['status'] ?? CalculadoraDesenvolvimento.statusNuvem;
     final titulo = dadosBase['titulo'] ?? "Semana ${widget.semana}";
     final descricao = dadosBase['desc'] ?? "Sem descrição disponível."; 
     
@@ -66,10 +66,10 @@ class _TelaSaltoState extends State<TelaSalto> {
     String tituloSinais = "Sinais Comuns";
     String subTituloSinais = "Marque o que você percebeu";
     
-    if (status == CalculadoraDesenvolvimento.STATUS_CRISE) {
+    if (status == CalculadoraDesenvolvimento.statusCrise) {
       tituloSinais = "Fase de Crise";
       subTituloSinais = "Sinais de irritabilidade esperados";
-    } else if (status == CalculadoraDesenvolvimento.STATUS_SOL) {
+    } else if (status == CalculadoraDesenvolvimento.statusSol) {
       tituloSinais = "Fase Ensolarada";
       subTituloSinais = "Comportamentos positivos";
     }
@@ -110,7 +110,7 @@ class _TelaSaltoState extends State<TelaSalto> {
                   Positioned(
                     right: -20,
                     bottom: -30,
-                    child: Icon(iconeCabecalho, size: 180, color: Colors.white.withOpacity(0.15)),
+                    child: Icon(iconeCabecalho, size: 180, color: Colors.white.withValues(alpha: 0.15)),
                   ),
                   Positioned(
                     left: 20,
@@ -178,7 +178,7 @@ class _TelaSaltoState extends State<TelaSalto> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
                       ),
                       child: Column(
                         children: sinais.asMap().entries.map((entry) {
@@ -239,7 +239,7 @@ class _TelaSaltoState extends State<TelaSalto> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         border: Border(left: BorderSide(color: corSecundaria, width: 4)),
-                        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, 2))],
+                        boxShadow: [BoxShadow(color: Colors.grey.withValues(alpha: 0.05), blurRadius: 5, offset: const Offset(0, 2))],
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,7 +265,7 @@ class _TelaSaltoState extends State<TelaSalto> {
                             gradient: const LinearGradient(colors: [Color(0xFFFFF8E1), Colors.white], begin: Alignment.topCenter, end: Alignment.bottomCenter),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: const Color(0xFFFFECB3)),
-                            boxShadow: [BoxShadow(color: Colors.amber.withOpacity(0.1), blurRadius: 15, offset: const Offset(0, 5))],
+                            boxShadow: [BoxShadow(color: Colors.amber.withValues(alpha: 0.1), blurRadius: 15, offset: const Offset(0, 5))],
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,

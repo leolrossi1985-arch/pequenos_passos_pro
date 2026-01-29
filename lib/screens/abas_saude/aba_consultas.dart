@@ -250,7 +250,7 @@ class _ModalConsultaState extends State<_ModalConsulta> {
             // ESPECIALIDADE
             const Text("Especialidade", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
             DropdownButtonFormField<String>(
-              value: _especialidade, 
+              initialValue: _especialidade, 
               icon: const Icon(Icons.keyboard_arrow_down_rounded), 
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87), 
               decoration: const InputDecoration(border: UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey))), 
@@ -314,7 +314,7 @@ class _ModalConsultaState extends State<_ModalConsulta> {
             
             // LEMBRETE
             DropdownButtonFormField<int>(
-              value: _lembreteMinutos,
+              initialValue: _lembreteMinutos,
               decoration: InputDecoration(prefixIcon: const Icon(Icons.notifications_active_outlined, color: Colors.orange), labelText: "Lembrete", border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
               items: const [DropdownMenuItem(value: 0, child: Text("Sem lembrete")), DropdownMenuItem(value: 15, child: Text("15 min antes")), DropdownMenuItem(value: 30, child: Text("30 min antes")), DropdownMenuItem(value: 60, child: Text("1 hora antes")), DropdownMenuItem(value: 1440, child: Text("1 dia antes"))],
               onChanged: (v) => setState(() => _lembreteMinutos = v!),

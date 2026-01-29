@@ -18,15 +18,21 @@ class LinhaTempoBebe extends StatefulWidget {
 }
 
 class _LinhaTempoBebeState extends State<LinhaTempoBebe> {
-  late ScrollController _scrollController;
+  ScrollController? _scrollController;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     // Centraliza na semana SELECIONADA
-    _scrollController = ScrollController(
-      initialScrollOffset: (widget.semanaSelecionada * 78.0) - (MediaQueryData.fromView(WidgetsBinding.instance.window).size.width / 2) + 35, 
+    _scrollController ??= ScrollController(
+      initialScrollOffset: (widget.semanaSelecionada * 78.0) - (MediaQuery.of(context).size.width / 2) + 35, 
     );
+  }
+
+  @override
+  void dispose() {
+    _scrollController?.dispose();
+    super.dispose();
   }
 
   @override
@@ -93,13 +99,13 @@ class _LinhaTempoBebeState extends State<LinhaTempoBebe> {
                     height: tamanhoBola,
                     width: tamanhoBola,
                     decoration: BoxDecoration(
-                      color: corBg.withOpacity(isSelecionado ? 1.0 : 0.5),
+                      color: corBg.withValues(alpha: isSelecionado ? 1.0 : 0.5),
                       shape: BoxShape.circle,
                       border: isSelecionado 
                         ? Border.all(color: Colors.white, width: 3) 
-                        : Border.all(color: corIcone.withOpacity(0.3), width: 1),
+                        : Border.all(color: corIcone.withValues(alpha: 0.3), width: 1),
                       boxShadow: isSelecionado 
-                        ? [BoxShadow(color: corBg.withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 5))] 
+                        ? [BoxShadow(color: corBg.withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 5))] 
                         : [],
                     ),
                     child: Icon(icone, color: corIcone, size: isSelecionado ? 28 : 20),

@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/alimentacao_service.dart';
 import '../services/bebe_service.dart';
 import '../data/conteudo_alimentos.dart'; 
-import '../services/resumo_service.dart'; // <--- IMPORTANTE: Adicione este import
+import '../services/rotina_service.dart'; // <--- CORREÇÃO: Importa o RotinaService
 
 class TelaAlimentacao extends StatefulWidget {
   const TelaAlimentacao({super.key});
@@ -385,11 +385,17 @@ class _ModalDetalhesAlimentoState extends State<_ModalDetalhesAlimento> {
                  width: double.infinity, height: 55, 
                  child: ElevatedButton(
                    onPressed: () async { 
-                     // 1. Salva no registro detalhado
+                     // 1. Salva no registro detalhado (Mantém o grid colorido)
                      await AlimentacaoService.registrarExperiencia(widget.docId, _reacao, _notasController.text, a); 
                      
-                     // 2. SALVA NO RESUMO (CONTADOR) - AGORA SIM!
-                     await ResumoService.atualizarNutricao(a['categoria'], DateTime.now());
+                     // 2. CORREÇÃO: Salva no RotinaService (Atualiza gráfico e contador)
+                     // O RotinaService vai ler o campo 'categoria' e incrementar o contador certo
+                     await RotinaService.registrarEvento('nutricao', {
+                       'categoria': a['categoria'],
+                       'alimento': a['nome'],
+                       'reacao': _reacao,
+                       'data': DateTime.now().toIso8601String()
+                     });
 
                      if (mounted) Navigator.pop(context); 
                    }, 

@@ -41,13 +41,21 @@ class _TelaSelecaoState extends State<TelaSelecao> {
             onPressed: () async {
               try {
                 await BebeService.entrarComCodigo(controller.text.trim());
-                if (mounted) {
-                  Navigator.pop(ctx);
-                  Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const TelaBase()), (r) => false);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bebê vinculado com sucesso!")));
-                }
+                if (!ctx.mounted) return;
+                
+                Navigator.pop(ctx);
+                
+                if (!context.mounted) return;
+                Navigator.pushAndRemoveUntil(
+                  context, 
+                  MaterialPageRoute(builder: (_) => const TelaBase()), 
+                  (r) => false
+                );
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bebê vinculado com sucesso!")));
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Erro: $e"), backgroundColor: Colors.red));
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Erro: $e"), backgroundColor: Colors.red));
+                }
               }
             },
             child: const Text("Entrar")
@@ -110,8 +118,21 @@ class _TelaSelecaoState extends State<TelaSelecao> {
                           },
                         ),
                         onTap: () async {
-                          await BebeService.definirBebeAtivo(bebe['id']);
-                          if (mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const TelaBase()), (r) => false);
+                          try {
+                            await BebeService.definirBebeAtivo(bebe['id']);
+                            if (!context.mounted) return;
+
+                            Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(builder: (_) => const TelaBase()),
+                                (r) => false);
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                  content: Text("Erro: $e"),
+                                  backgroundColor: Colors.red));
+                            }
+                          }
                         },
                       ),
                     );

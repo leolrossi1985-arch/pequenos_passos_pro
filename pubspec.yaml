@@ -1,7 +1,7 @@
 name: pequenos_passos_pro
 description: App de desenvolvimento infantil.
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -25,7 +25,7 @@ dependencies:
   # Utilidades
   shared_preferences: ^2.2.2
   intl: ^0.20.2 # Versão exigida pelo Flutter novo
-  google_fonts: ^6.1.0
+  google_fonts: ^7.1.0
   lottie: ^3.1.0
   url_launcher: ^6.3.0
   
@@ -51,6 +51,8 @@ dependencies:
 
   # Ícones
   cupertino_icons: ^1.0.6
+  flutter_image_compress: ^2.3.0
+  google_generative_ai: ^0.4.0
 
 dev_dependencies:
   flutter_test:
@@ -65,7 +67,6 @@ flutter:
 
   assets:
     - assets/
-    - assets/images/
     - assets/sounds/
 
 flutter_launcher_icons:
@@ -79,9 +80,9 @@ flutter_launcher_icons:
 
 flutter_native_splash:
   color: "#0F2E20"
-  image: assets/logo.png
+  image: assets/icon.png
   android_12:
-    image: assets/logo.png
+    image: assets/icon.png
     color: "#0F2E20"
     icon_background_color: "#0F2E20"
   fullscreen: true

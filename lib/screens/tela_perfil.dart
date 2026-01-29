@@ -1,9 +1,14 @@
 import 'dart:io';
+import 'dart:convert'; // Para Base64
+import 'dart:typed_data'; // Para Uint8List
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'; // Para kIsWeb
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart'; // <--- IMPORTANTE
+
 import '../services/bebe_service.dart';
 
 class TelaPerfil extends StatefulWidget {
@@ -17,15 +22,15 @@ class _TelaPerfilState extends State<TelaPerfil> {
   final _nomeController = TextEditingController();
   DateTime? _dataNascimento;
   
-  // Controle da Data Prevista (Mesma lógica do Onboarding)
   bool _usarDPP = false;
   DateTime? _dataPrevistaParto;
 
   XFile? _imagemSelecionada;
-  String? _imagemUrlAtual;
+  String? _imagemUrlAtual; // Pode ser Path (antigo), URL ou Base64
   String? _idBebe;
   String? _codigoAcesso; 
   bool _carregando = true;
+  bool _salvando = false; // Novo estado para loading de salvamento
 
   @override
   void initState() {
@@ -43,16 +48,14 @@ class _TelaPerfilState extends State<TelaPerfil> {
           _imagemUrlAtual = dados['fotoUrl'];
           _codigoAcesso = dados['codigo_acesso'];
 
-          // Carrega Data Nascimento
           if (dados['data_parto'] is Timestamp) {
             _dataNascimento = (dados['data_parto'] as Timestamp).toDate();
           } else {
             _dataNascimento = DateTime.parse(dados['data_parto']);
           }
 
-          // Carrega Data Prevista (DPP)
           if (dados['data_prevista'] != null) {
-            _usarDPP = true; // Ativa o switch se tiver data salva
+            _usarDPP = true;
             if (dados['data_prevista'] is Timestamp) {
               _dataPrevistaParto = (dados['data_prevista'] as Timestamp).toDate();
             } else {
@@ -71,10 +74,69 @@ class _TelaPerfilState extends State<TelaPerfil> {
 
   Future<void> _alterarFoto() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
+    final picked = await picker.pickImage(source: ImageSource.gallery); // Removemos imageQuality daqui, faremos no compress
     if (picked != null) {
       setState(() => _imagemSelecionada = picked);
     }
+  }
+
+  // --- CONVERSOR INTELIGENTE PARA BASE64 ---
+  Future<String?> _converterParaBase64(XFile arquivo) async {
+    // 1. WEB: Não precisa comprimir tanto, converte direto
+    if (kIsWeb) {
+      final bytes = await arquivo.readAsBytes();
+      return base64Encode(bytes);
+    }
+
+    // 2. MOBILE: Comprime para não estourar o banco (Max 1MB)
+    try {
+      final File file = File(arquivo.path);
+      List<int>? result = await FlutterImageCompress.compressWithFile(
+        file.absolute.path,
+        minWidth: 500, // Reduz resolução
+        minHeight: 500,
+        quality: 60,   // Reduz qualidade (60% é bom)
+      );
+      
+      if (result != null) {
+        return base64Encode(result);
+      }
+    } catch (e) {
+      print("Erro ao comprimir: $e");
+    }
+    return null;
+  }
+
+  // --- VISUALIZADOR DE IMAGEM ---
+  ImageProvider? _getImagemProvider() {
+    // 1. Se acabou de selecionar uma foto (Preview)
+    if (_imagemSelecionada != null) {
+      if (kIsWeb) return NetworkImage(_imagemSelecionada!.path);
+      return FileImage(File(_imagemSelecionada!.path));
+    }
+
+    // 2. Se tem imagem salva (URL, Path ou Base64)
+    if (_imagemUrlAtual != null && _imagemUrlAtual!.isNotEmpty) {
+      try {
+        // Tenta decodificar Base64
+        if (!_imagemUrlAtual!.startsWith('/') && !_imagemUrlAtual!.startsWith('http')) {
+           Uint8List bytes = base64Decode(_imagemUrlAtual!);
+           return MemoryImage(bytes);
+        }
+      } catch (e) {}
+
+      // Web/URL
+      if (kIsWeb || _imagemUrlAtual!.startsWith('http')) {
+        return NetworkImage(_imagemUrlAtual!);
+      }
+
+      // Arquivo Local (Legado - com proteção)
+      try {
+        final file = File(_imagemUrlAtual!);
+        if (file.existsSync()) return FileImage(file);
+      } catch (e) {}
+    }
+    return null;
   }
 
   Future<void> _selecionarData({required bool isNascimento}) async {
@@ -102,28 +164,31 @@ class _TelaPerfilState extends State<TelaPerfil> {
   void _salvar() async {
     if (_idBebe == null || _nomeController.text.isEmpty || _dataNascimento == null) return;
 
-    // Validação: Se ativou o switch, a data é obrigatória
     if (_usarDPP && _dataPrevistaParto == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Por favor, informe a Data Prevista.")));
       return;
     }
 
-    setState(() => _carregando = true);
+    setState(() => _salvando = true); // Bloqueia botão e mostra loading
 
     Map<String, dynamic> updateData = {
       'nome': _nomeController.text,
       'data_parto': _dataNascimento!.toIso8601String(),
-      // Lógica crucial: Se desligou o switch, salva NULL para apagar a data antiga
       'data_prevista': _usarDPP ? _dataPrevistaParto!.toIso8601String() : null,
     };
 
+    // --- CONVERSÃO E SALVAMENTO DA FOTO ---
     if (_imagemSelecionada != null) {
-      updateData['fotoUrl'] = _imagemSelecionada!.path;
+      String? base64Foto = await _converterParaBase64(_imagemSelecionada!);
+      if (base64Foto != null) {
+        updateData['fotoUrl'] = base64Foto; // Salva o TEXTO da imagem no banco
+      }
     }
 
     await BebeService.atualizarBebe(_idBebe!, updateData);
     
     if (mounted) {
+      setState(() => _salvando = false);
       Navigator.pop(context, true); 
     }
   }
@@ -153,12 +218,8 @@ class _TelaPerfilState extends State<TelaPerfil> {
                       CircleAvatar(
                         radius: 60,
                         backgroundColor: Colors.grey[200],
-                        backgroundImage: _imagemSelecionada != null 
-                            ? (kIsWeb ? NetworkImage(_imagemSelecionada!.path) : FileImage(File(_imagemSelecionada!.path)) as ImageProvider)
-                            : (_imagemUrlAtual != null && _imagemUrlAtual!.isNotEmpty 
-                                ? (kIsWeb ? NetworkImage(_imagemUrlAtual!) : FileImage(File(_imagemUrlAtual!)) as ImageProvider)
-                                : null),
-                        child: (_imagemSelecionada == null && (_imagemUrlAtual == null || _imagemUrlAtual!.isEmpty)) 
+                        backgroundImage: _getImagemProvider(),
+                        child: _getImagemProvider() == null 
                             ? const Icon(Icons.face, size: 60, color: Colors.grey) 
                             : null,
                       ),
@@ -200,12 +261,12 @@ class _TelaPerfilState extends State<TelaPerfil> {
 
                 const SizedBox(height: 30),
 
-                // --- SEÇÃO IDADE CORRIGIDA (IGUAL ONBOARDING) ---
+                // --- SWITCH DPP ---
                 SwitchListTile(
                   title: const Text("Informar Data Prevista do Parto?", style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2D3A3A))),
                   subtitle: const Text("Ative se o bebê nasceu antes ou depois de 40 semanas.", style: TextStyle(color: Colors.grey, fontSize: 13)),
                   value: _usarDPP,
-                  activeColor: Colors.teal,
+                  activeThumbColor: Colors.teal,
                   contentPadding: EdgeInsets.zero,
                   onChanged: (val) {
                     setState(() {
@@ -238,8 +299,8 @@ class _TelaPerfilState extends State<TelaPerfil> {
                                 const SizedBox(height: 4),
                                 Text(
                                   _dataPrevistaParto == null 
-                                      ? "Toque para selecionar" 
-                                      : DateFormat('dd/MM/yyyy').format(_dataPrevistaParto!),
+                                    ? "Toque para selecionar" 
+                                    : DateFormat('dd/MM/yyyy').format(_dataPrevistaParto!),
                                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.orange.shade900)
                                 ),
                               ],
@@ -253,7 +314,7 @@ class _TelaPerfilState extends State<TelaPerfil> {
 
                 const SizedBox(height: 40),
 
-                // --- CÓDIGO DE COMPARTILHAMENTO ---
+                // --- CÓDIGO CONVITE ---
                 if (_codigoAcesso != null)
                   Container(
                     padding: const EdgeInsets.all(15),
@@ -285,12 +346,14 @@ class _TelaPerfilState extends State<TelaPerfil> {
                   width: double.infinity,
                   height: 55,
                   child: ElevatedButton(
-                    onPressed: _salvar,
+                    onPressed: _salvando ? null : _salvar,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.teal,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
                     ),
-                    child: const Text("SALVAR ALTERAÇÕES", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    child: _salvando 
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text("SALVAR ALTERAÇÕES", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 )
               ],

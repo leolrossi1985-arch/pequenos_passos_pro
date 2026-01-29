@@ -238,7 +238,7 @@ class _AbaCrescimentoState extends State<AbaCrescimento> {
                     ),
 
                   // --- LISTA HISTÓRICO ---
-                  ...historico.map((doc) => _buildItemHistorico(doc)).toList()
+                  ...historico.map((doc) => _buildItemHistorico(doc))
                 ],
               );
             },

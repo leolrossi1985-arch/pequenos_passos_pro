@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart'; // Para debugPrint
 import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -45,16 +46,32 @@ class BebeService {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return [];
 
-    final snapshot = await _bebesRef
-        .where('membros', arrayContains: user.uid)
-        .orderBy('criado_em', descending: true)
-        .get();
+    try {
+      // Busca oficial: Traz apenas os bebês onde sou membro
+      final snapshot = await _bebesRef
+          .where('membros', arrayContains: user.uid)
+          .get();
 
-    return snapshot.docs.map((d) {
-      var map = d.data() as Map<String, dynamic>;
-      map['id'] = d.id;
-      return map;
-    }).toList();
+      var lista = snapshot.docs.map((d) {
+        var map = d.data() as Map<String, dynamic>;
+        map['id'] = d.id;
+        return map;
+      }).toList();
+
+      // Ordenação em memória (descendente)
+      lista.sort((a, b) {
+        var tA = a['criado_em'];
+        var tB = b['criado_em'];
+        DateTime dA = (tA is Timestamp) ? tA.toDate() : DateTime.now();
+        DateTime dB = (tB is Timestamp) ? tB.toDate() : DateTime.now();
+        return dB.compareTo(dA);
+      });
+
+      return lista;
+    } catch (e) {
+      debugPrint("Erro ao listar bebês: $e");
+      return [];
+    }
   }
 
   // ===========================================================================
@@ -109,13 +126,25 @@ class BebeService {
 
     // Tenta pegar o salvo localmente
     if (idAtivo != null) {
-      // Verifica se ainda sou membro deste bebê (caso tenha sido removido)
-      final doc = await _bebesRef.doc(idAtivo).get();
-      if (doc.exists) {
-        List membros = doc['membros'] ?? [];
-        if (membros.contains(user.uid)) {
-          return _bebesRef.doc(idAtivo);
+      try {
+        // Verifica se ainda sou membro deste bebê (caso tenha sido removido)
+        // Se der permissão negada aqui, assumimos que não podemos ler este doc específico
+        final doc = await _bebesRef.doc(idAtivo).get();
+        if (doc.exists) {
+          List membros = doc['membros'] ?? [];
+          // Fallback para 'criado_por' se 'membros' não existir
+          if (membros.isEmpty && doc['criado_por'] == user.uid) {
+             membros = [user.uid];
+          }
+          
+          if (membros.contains(user.uid)) {
+            return _bebesRef.doc(idAtivo);
+          }
         }
+      } catch (e) {
+        debugPrint("⚠️ Erro ao verificar bebê ativo ($idAtivo): $e");
+        // Se falhar a leitura direta (permissão), deixamos cair para o listarBebes
+        // que agora tem lógica de fallback mais robusta.
       }
     }
 

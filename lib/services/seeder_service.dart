@@ -1,7 +1,6 @@
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'bebe_service.dart';
 
 class SeederService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -51,13 +50,17 @@ class SeederService {
   }) async {
     // 1. Cria o Bebê
     String codigo = "TEST${Random().nextInt(9999)}";
-    DocumentReference bebeRef = await _db.collection('bebes_compartilhados').add({
+    // CORREÇÃO: Usar coleção 'bebes' para bater com o BebeService
+    DocumentReference bebeRef = await _db.collection('bebes').add({
       'nome': nome,
       'data_parto': dataNascimento.toIso8601String(),
       'sexo': sexo,
+      'membros': [_uid], // Campo padrão do BebeService
+      'admins': [_uid],  // Campo padrão do BebeService
       'criado_por': _uid,
       'cuidadores': [_uid],
       'codigo_convite': codigo,
+      'codigo_acesso': codigo, // Alias para compatibilidade
       'fotoUrl': '', // Sem foto por enquanto
       'criado_em': FieldValue.serverTimestamp(),
     });

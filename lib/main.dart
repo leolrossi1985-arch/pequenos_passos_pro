@@ -16,8 +16,8 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'services/revenue_cat_service.dart';
 import 'services/bebe_service.dart';
 import 'services/notificacao_service.dart';
-import 'screens/tela_base.dart';
 import 'screens/tela_onboarding.dart';
+import 'screens/premium_gate.dart'; // <--- ADICIONADO: O Porteiro do Premium
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -127,8 +127,6 @@ class MeuAppPro extends StatelessWidget {
       ),
 
       // --- FORÇA O MODO CLARO ---
-      // Mesmo que o celular esteja em modo escuro, o app será claro.
-      // Isso evita quebras de layout nas suas telas atuais.
       themeMode: ThemeMode.light, 
 
       home: const AuthGate(),
@@ -172,7 +170,8 @@ class AuthGate extends StatelessWidget {
             final temBebes = babySnapshot.data ?? false;
 
             if (temBebes) {
-              return const TelaBase();
+              // 🛡️ PROTEÇÃO: Verifica pagamento antes de entrar
+              return const PremiumGate(); 
             }
 
             return const TelaOnboarding();

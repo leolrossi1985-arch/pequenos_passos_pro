@@ -4,10 +4,8 @@
 	<dict>
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
-		<key>
-			<string>Zelo</string>
-		</key>
-		<string>Pequenos Passos Pro</string>
+		<key>CFBundleDisplayName</key>
+		<string>Zelo</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -47,6 +45,22 @@
 		<true/>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
+		<!-- PERMISSÕES ADICIONADAS PARA O APP -->
+		<!-- 1. Galeria (Para fotos de perfil, remédios e sintomas) -->
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>O app precisa acessar a galeria para você adicionar fotos ao perfil do bebê e registrar sintomas/remédios.</string>
+		<!-- 2. Câmera (Para tirar fotos na hora) -->
+		<key>NSCameraUsageDescription</key>
+		<string>O app precisa acessar a câmera para você tirar fotos do bebê ou de sintomas.</string>
+		<!-- 3. Microfone (Caso grave áudio ou use ditado no futuro) -->
+		<key>NSMicrophoneUsageDescription</key>
+		<string>O app precisa acessar o microfone para gravar áudios de choro ou notas.</string>
+		<!-- 4. Notificações Locais (Lembretes de mamada, remédio, soneca) -->
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>fetch</string>
+			<string>remote-notification</string>
+		</array>
 		<key>UIStatusBarHidden</key>
 		<true/>
 		<key>UIViewControllerBasedStatusBarAppearance</key>

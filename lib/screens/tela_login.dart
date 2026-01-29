@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart'; // Para kIsWeb
 import 'tela_base.dart'; 
+import 'tela_onboarding.dart'; // Importante para mandar quem não tem conta
 
 class TelaLogin extends StatefulWidget {
   const TelaLogin({super.key});
@@ -20,7 +21,6 @@ class _TelaLoginState extends State<TelaLogin> {
     scopes: ['email'],
   );
   
-  bool _isLogin = true; 
   bool _isLoading = false;
 
   @override
@@ -39,23 +39,70 @@ class _TelaLoginState extends State<TelaLogin> {
     }
   }
 
-  Future<void> _autenticarEmail() async {
-    setState(() => _isLoading = true);
-    try {
-      if (_isLogin) {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _senhaController.text.trim(),
-        );
-      } else {
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _senhaController.text.trim(),
+  // --- TRAVA DE SEGURANÇA: E-MAIL VERIFICADO ---
+  Future<bool> _checarEmailVerificado(User user) async {
+    // Atualiza o status do usuário (caso ele tenha acabado de clicar no link)
+    await user.reload();
+    final updatedUser = FirebaseAuth.instance.currentUser;
+
+    if (updatedUser != null && !updatedUser.emailVerified) {
+      await FirebaseAuth.instance.signOut(); // Desloga imediatamente
+      
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text("E-mail não verificado"),
+            content: Text("Para sua segurança, você precisa confirmar o e-mail enviado para:\n\n${updatedUser.email}"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx), 
+                child: const Text("OK")
+              ),
+              TextButton(
+                onPressed: () async {
+                  await updatedUser.sendEmailVerification();
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Link reenviado! Verifique seu e-mail.")));
+                }, 
+                child: const Text("Reenviar E-mail")
+              )
+            ],
+          )
         );
       }
-      _irParaHome(); 
+      return false; // Bloqueado
+    }
+    return true; // Liberado
+  }
+
+  Future<void> _autenticarEmail() async {
+    if (_emailController.text.isEmpty || _senhaController.text.isEmpty) return;
+
+    setState(() => _isLoading = true);
+    try {
+      // Tenta logar
+      UserCredential cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _senhaController.text.trim(),
+      );
+
+      // Se logou, checa se o e-mail é real
+      if (cred.user != null) {
+        bool liberado = await _checarEmailVerificado(cred.user!);
+        if (liberado) {
+          _irParaHome(); 
+        }
+      }
+
     } on FirebaseAuthException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Erro: ${e.message}"), backgroundColor: Colors.red));
+      String msg = "Erro ao fazer login.";
+      if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        msg = "E-mail ou senha incorretos.";
+      } else if (e.code == 'invalid-email') {
+        msg = "Formato de e-mail inválido.";
+      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -64,6 +111,16 @@ class _TelaLoginState extends State<TelaLogin> {
   Future<void> _autenticarGoogle() async {
     setState(() => _isLoading = true);
     try {
+      // 1. FLUXO WEB (Pop-up nativo do Firebase)
+      if (kIsWeb) {
+        UserCredential cred = await FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider());
+        if (cred.user != null) {
+          _irParaHome();
+        }
+        return;
+      }
+
+      // 2. FLUXO MOBILE (Google Sign In Plugin)
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
         setState(() => _isLoading = false);
@@ -71,16 +128,17 @@ class _TelaLoginState extends State<TelaLogin> {
       }
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       
-      if (kIsWeb && googleAuth.idToken == null) {
-          throw FirebaseAuthException(code: 'token-null', message: "Erro de configuração Web.");
-      }
-
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken, 
         idToken: googleAuth.idToken,
       );
-      await FirebaseAuth.instance.signInWithCredential(credential);
-      _irParaHome();
+      
+      UserCredential cred = await FirebaseAuth.instance.signInWithCredential(credential);
+      
+      // Google geralmente já verifica o e-mail, mas é bom garantir
+      if (cred.user != null) {
+         _irParaHome();
+      }
 
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Erro Google: $e"), backgroundColor: Colors.red));
@@ -89,16 +147,21 @@ class _TelaLoginState extends State<TelaLogin> {
     }
   }
 
+  void _irParaCadastro() {
+    // Redireciona para o Onboarding ou Registro, pois o registro requer dados do bebê
+    Navigator.of(context).push(MaterialPageRoute(builder: (context) => const TelaOnboarding()));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF6A9C89),
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        // Removemos o botão de voltar se for a tela inicial, ou mantemos se veio do Paywall
+        leading: Navigator.canPop(context) 
+          ? IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.of(context).pop())
+          : null,
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -114,11 +177,12 @@ class _TelaLoginState extends State<TelaLogin> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // --- AQUI ESTÁ A MUDANÇA PARA O SEU ÍCONE ---
+                // Ícone/Logo
                 Image.asset(
-                  'assets/icon.png', // Caminho exato
-                  height: 100,       // Tamanho do ícone
+                  'assets/icon.png', 
+                  height: 100,      
                   fit: BoxFit.contain,
+                  errorBuilder: (c,e,s) => const Icon(Icons.baby_changing_station, size: 80, color: Colors.white), // Fallback
                 ),
                 
                 const SizedBox(height: 10),
@@ -152,10 +216,10 @@ class _TelaLoginState extends State<TelaLogin> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        _isLogin ? "Bem-vindo(a)!" : "Criar Família",
+                      const Text(
+                        "Fazer Login",
                         textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF2D3A3A)),
+                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF2D3A3A)),
                       ),
                       const SizedBox(height: 30),
                       
@@ -181,7 +245,26 @@ class _TelaLoginState extends State<TelaLogin> {
                         obscureText: true,
                       ),
                       
-                      const SizedBox(height: 25),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () async {
+                            if (_emailController.text.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Digite seu e-mail para recuperar a senha.")));
+                              return;
+                            }
+                            try {
+                              await FirebaseAuth.instance.sendPasswordResetEmail(email: _emailController.text.trim());
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("E-mail de recuperação enviado!")));
+                            } catch(e) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Erro ao enviar e-mail.")));
+                            }
+                          },
+                          child: const Text("Esqueci minha senha", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
 
                       if (_isLoading) 
                         const Center(child: CircularProgressIndicator(color: Colors.teal)) 
@@ -199,7 +282,7 @@ class _TelaLoginState extends State<TelaLogin> {
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   elevation: 2,
                                 ),
-                                child: Text(_isLogin ? "ENTRAR" : "CADASTRAR", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                child: const Text("ENTRAR", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                               ),
                             ),
                             
@@ -212,7 +295,7 @@ class _TelaLoginState extends State<TelaLogin> {
                               height: 50,
                               child: OutlinedButton.icon(
                                 onPressed: _autenticarGoogle,
-                                icon: Image.network('https://img.icons8.com/color/48/google-logo.png', height: 24),
+                                icon: Image.network('https://img.icons8.com/color/48/google-logo.png', height: 24, errorBuilder: (c,e,s) => const Icon(Icons.g_mobiledata)),
                                 label: const Text("Entrar com Google"),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: Colors.black87,
@@ -226,16 +309,17 @@ class _TelaLoginState extends State<TelaLogin> {
                       
                       const SizedBox(height: 20),
                       
+                      // BOTÃO PARA IR PARA O CADASTRO (ONBOARDING)
                       TextButton(
-                        onPressed: () => setState(() => _isLogin = !_isLogin),
+                        onPressed: _irParaCadastro,
                         child: RichText(
-                          text: TextSpan(
-                            text: _isLogin ? "Não tem conta? " : "Já tem conta? ",
-                            style: const TextStyle(color: Colors.grey),
+                          text: const TextSpan(
+                            text: "Não tem conta? ",
+                            style: TextStyle(color: Colors.grey),
                             children: [
                               TextSpan(
-                                text: _isLogin ? "Cadastre-se" : "Faça Login",
-                                style: const TextStyle(color: Colors.teal, fontWeight: FontWeight.bold),
+                                text: "Começar Agora",
+                                style: TextStyle(color: Colors.teal, fontWeight: FontWeight.bold),
                               )
                             ]
                           ),

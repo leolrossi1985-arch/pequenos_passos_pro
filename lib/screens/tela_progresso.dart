@@ -1,5 +1,8 @@
 import 'dart:io';
 import 'dart:ui'; 
+import 'dart:convert'; // Para Base64
+import 'dart:typed_data'; // Para Uint8List
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'; // Para kIsWeb
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -51,11 +54,38 @@ class _TelaProgressoState extends State<TelaProgresso> {
     }
   }
 
+  // --- LÓGICA DE IMAGEM HÍBRIDA (IGUAL ÀS OUTRAS TELAS) ---
+  // --- LÓGICA DE IMAGEM HÍBRIDA CORRIGIDA ---
   ImageProvider? _getImagemPerfil() {
-    if (_fotoBebe != null && _fotoBebe!.isNotEmpty) {
-      if (kIsWeb) return NetworkImage(_fotoBebe!);
-      return FileImage(File(_fotoBebe!));
+    if (_fotoBebe == null || _fotoBebe!.isEmpty) return null;
+
+    // 1. Web ou URL (http)
+    if (kIsWeb || _fotoBebe!.startsWith('http')) {
+      return NetworkImage(_fotoBebe!);
     }
+
+    // 2. Base64 (Texto Longo)
+    // Caminhos de arquivo raramente passam de 200 caracteres.
+    // Uma foto em Base64 tem milhares. Essa é a melhor forma de distinguir.
+    if (_fotoBebe!.length > 200) {
+       try {
+         Uint8List bytes = base64Decode(_fotoBebe!);
+         return MemoryImage(bytes);
+       } catch (e) {
+         debugPrint("Erro ao decodificar imagem Base64: $e");
+       }
+    }
+
+    // 3. Arquivo Local (Caminho curto)
+    try {
+      final file = File(_fotoBebe!);
+      if (file.existsSync()) {
+        return FileImage(file);
+      }
+    } catch (e) {
+      // Ignora erros de arquivo não encontrado
+    }
+    
     return null;
   }
 
@@ -90,9 +120,6 @@ class _TelaProgressoState extends State<TelaProgresso> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Removemos o _buildHeaderVivo antigo pois agora temos o Header Flutuante
-                    // _buildHeaderVivo(bebeRef), 
-                    
                     const Text("Conquistas", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D3A3A))),
                     const SizedBox(height: 15),
                     _buildGridEstatisticas(bebeRef),
@@ -133,7 +160,7 @@ class _TelaProgressoState extends State<TelaProgresso> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text("Nutrição (Hoje)", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF2D3A3A))),
+                              const Text("Nutrição (7 Dias)", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF2D3A3A))),
                               const SizedBox(height: 10),
                               _buildGraficoNutricaoLive(bebeRef),
                             ],
@@ -283,26 +310,34 @@ class _TelaProgressoState extends State<TelaProgresso> {
   }
 
   // ===========================================================================
-  // 2. GRÁFICO NUTRIÇÃO (LIVE)
+  // 2. GRÁFICO NUTRIÇÃO (OTIMIZADO: Filtra no Banco 7 Dias)
   // ===========================================================================
   Widget _buildGraficoNutricaoLive(DocumentReference ref) {
+    final dataLimite = _hoje.subtract(const Duration(days: 7));
+    final String dataLimiteIso = dataLimite.toIso8601String();
+
     return StreamBuilder<QuerySnapshot>(
-      stream: ref.collection('alimentacao').orderBy('data', descending: true).limit(20).snapshots(),
+      stream: ref.collection('alimentacao')
+          .where('data', isGreaterThanOrEqualTo: dataLimiteIso)
+          .orderBy('data', descending: true)
+          .snapshots(),
       builder: (c, s) {
         int f = 0, l = 0, p = 0;
+        
         if (s.hasData) {
           for (var doc in s.data!.docs) {
              final d = doc.data() as Map<String, dynamic>;
-             DateTime? dt;
-             try { dt = DateTime.parse(d['data']); } catch(e) {}
-             if (dt != null && dt.year == _hoje.year && dt.month == _hoje.month && dt.day == _hoje.day) {
-               String cat = d['categoria'] ?? '';
-               if (cat.contains('Fruta')) f++; else if (cat.contains('Legume')) l++; else if (cat.contains('Proteína')) p++;
-             }
+             String cat = d['categoria'] ?? '';
+             
+             if (cat.contains('Fruta')) {
+               f++;
+             } else if (cat.contains('Legume')) l++; 
+             else if (cat.contains('Proteína')) p++;
           }
         }
+        
         int total = f + l + p;
-        if (total == 0) return _buildEmptyState("Sem dados hoje");
+        if (total == 0) return _buildEmptyState("Sem dados na semana");
 
         return Container(
           padding: const EdgeInsets.all(16),
@@ -323,7 +358,11 @@ class _TelaProgressoState extends State<TelaProgresso> {
 
   Widget _legendItem(String label, Color color, int count) {
     if (count == 0) return const SizedBox();
-    return Row(mainAxisSize: MainAxisSize.min, children: [Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)), const SizedBox(width: 4), Text("$label ($count)", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))]);
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)), 
+      const SizedBox(width: 4), 
+      Text("$label ($count)", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))
+    ]);
   }
 
   // ===========================================================================
@@ -335,7 +374,9 @@ class _TelaProgressoState extends State<TelaProgresso> {
       builder: (c, s) {
         if (!s.hasData || s.data!.docs.isEmpty) return _buildEmptyState("Sem dados");
         Map<int, double> horasPorDia = {};
-        for(int i=0; i<7; i++) horasPorDia[i] = 0.0;
+        for(int i=0; i<7; i++) {
+          horasPorDia[i] = 0.0;
+        }
 
         for (var doc in s.data!.docs) {
            final d = doc.data() as Map<String, dynamic>;
@@ -360,12 +401,12 @@ class _TelaProgressoState extends State<TelaProgresso> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 10)]),
           child: BarChart(BarChartData(
-            gridData: FlGridData(show: false),
+            gridData: const FlGridData(show: false),
             borderData: FlBorderData(show: false),
             titlesData: FlTitlesData(
-              leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
               bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, getTitlesWidget: (v, m) {
                  int i = v.toInt(); 
                  int diasAtras = 6 - i;
@@ -394,10 +435,10 @@ class _TelaProgressoState extends State<TelaProgresso> {
   // --- OUTROS WIDGETS ---
   Widget _buildToogleOption(String label, bool active, VoidCallback onTap) { return GestureDetector(onTap: onTap, child: AnimatedContainer(duration: const Duration(milliseconds: 200), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6), decoration: BoxDecoration(color: active ? const Color(0xFF2D3A3A) : Colors.transparent, borderRadius: BorderRadius.circular(18)), child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: active ? Colors.white : Colors.grey)))); }
   Widget _buildGridEstatisticas(DocumentReference ref) { return StreamBuilder<DocumentSnapshot>(stream: ref.snapshots(), builder: (context, snapBebe) { int mesesVida = 0; if (snapBebe.hasData && snapBebe.data!.data() != null) { final dados = snapBebe.data!.data() as Map<String, dynamic>; DateTime dpp = (dados['data_parto'] is Timestamp) ? (dados['data_parto'] as Timestamp).toDate() : DateTime.parse(dados['data_parto']); mesesVida = DateTime.now().difference(dpp).inDays ~/ 30; } return Row(children: [Expanded(child: _buildBadgeVacina(ref, mesesVida)), const SizedBox(width: 12), Expanded(child: _buildBadgeDentes(ref)), const SizedBox(width: 12), Expanded(child: _buildBadgeMarcos(ref, mesesVida))]); }); }
-  Widget _buildBadgeVacina(DocumentReference ref, int mesesVida) { return StreamBuilder<QuerySnapshot>(stream: ref.collection('vacinas').snapshots(), builder: (c, s) { List<String> idsTomados = s.hasData ? s.data!.docs.map((d) => d.id).toList() : []; List<Map<String, dynamic>> vacinasDevidas = vacinasPadrao.where((v) => (v['meses'] as int) <= mesesVida).toList(); int tomadas = 0; for (var v in vacinasDevidas) { if (idsTomados.contains(v['id'])) tomadas++; } int total = vacinasDevidas.length == 0 ? 1 : vacinasDevidas.length; return _buildStatCard("Vacinas", "$tomadas/$total", tomadas >= total ? Icons.check_circle_rounded : Icons.pending_actions_rounded, tomadas >= total ? const Color(0xFF00C853) : const Color(0xFFFFAB00)); }); }
+  Widget _buildBadgeVacina(DocumentReference ref, int mesesVida) { return StreamBuilder<QuerySnapshot>(stream: ref.collection('vacinas').snapshots(), builder: (c, s) { List<String> idsTomados = s.hasData ? s.data!.docs.map((d) => d.id).toList() : []; List<Map<String, dynamic>> vacinasDevidas = vacinasPadrao.where((v) => (v['meses'] as int) <= mesesVida).toList(); int tomadas = 0; for (var v in vacinasDevidas) { if (idsTomados.contains(v['id'])) tomadas++; } int total = vacinasDevidas.isEmpty ? 1 : vacinasDevidas.length; return _buildStatCard("Vacinas", "$tomadas/$total", tomadas >= total ? Icons.check_circle_rounded : Icons.pending_actions_rounded, tomadas >= total ? const Color(0xFF00C853) : const Color(0xFFFFAB00)); }); }
   Widget _buildBadgeDentes(DocumentReference ref) { return StreamBuilder<QuerySnapshot>(stream: ref.collection('dentes').snapshots(), builder: (c, s) => _buildStatCard("Dentes", "${s.data?.docs.length ?? 0}/20", Icons.face_retouching_natural_rounded, Colors.blue)); }
   Widget _buildBadgeMarcos(DocumentReference ref, int mesesVida) { return StreamBuilder<DocumentSnapshot>(stream: ref.collection('progresso').doc('marcos').snapshots(), builder: (c, snap) { int completados = 0; if(snap.hasData && snap.data!.exists) { var data = snap.data!.data() as Map<String, dynamic>; List lista = data['concluidos'] is List ? data['concluidos'] : []; completados = lista.length; } int totalIdade = 0; for (var grupo in marcosCompletos) { if (grupo['meses'] <= mesesVida + 1) { totalIdade += (grupo['sub_marcos'] as List? ?? []).length; } } if (totalIdade == 0) totalIdade = 1; return _buildStatCard("Marcos", "$completados/$totalIdade", Icons.emoji_events_rounded, Colors.amber.shade700); }); }
   Widget _buildStatCard(String title, String value, IconData icon, Color color) { return Container(padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 8), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))]), child: Column(children: [Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle), child: Icon(icon, color: color, size: 20)), const SizedBox(height: 10), Text(value, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: color)), Text(title, style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.bold))])); }
-  Widget _buildGraficoCrescimentoVivo(DocumentReference ref) { return StreamBuilder<QuerySnapshot>(stream: ref.collection('medidas').orderBy('data').snapshots(), builder: (context, snapshot) { if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return _buildEmptyState("Registre medidas na aba Saúde."); List<FlSpot> pontos = []; DateTime inicio = DateTime.parse(snapshot.data!.docs.first['data']); for (var doc in snapshot.data!.docs) { final d = doc.data() as Map<String, dynamic>; DateTime dt = DateTime.parse(d['data']); double x = dt.difference(inicio).inDays / 30.0; if (x < 0) x = 0; double y = _mostrarPeso ? (d['peso'] as num).toDouble() : (d['altura'] as num).toDouble(); pontos.add(FlSpot(x, y)); } List<List<FlSpot>> padrao = [[], []]; if (_mostrarPeso && pontos.isNotEmpty) padrao = GrowthStandards.calcularCurvasEsperadas(pesoInicial: pontos.first.y, mesesTotais: (pontos.last.x + 2).ceil()); return Container(height: 220, padding: const EdgeInsets.fromLTRB(0, 20, 20, 0), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 15)]), child: LineChart(LineChartData(gridData: FlGridData(show: true, drawVerticalLine: false, getDrawingHorizontalLine: (v) => FlLine(color: Colors.grey.shade100, strokeWidth: 1)), titlesData: FlTitlesData(show: true, rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)), topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)), bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, interval: 2, getTitlesWidget: (v,m)=>Text("${v.toInt()}m", style: const TextStyle(fontSize: 10, color: Colors.grey))))), borderData: FlBorderData(show: false), lineBarsData: [LineChartBarData(spots: pontos, isCurved: true, color: _mostrarPeso ? const Color(0xFF00695C) : Colors.blue, barWidth: 3, dotData: FlDotData(show: true), belowBarData: BarAreaData(show: true, color: (_mostrarPeso ? const Color(0xFF00695C) : Colors.blue).withOpacity(0.1))), if (_mostrarPeso) LineChartBarData(spots: padrao[1], isCurved: true, color: Colors.green.withOpacity(0.3), barWidth: 2, dashArray: [5, 5], dotData: FlDotData(show: false))]))); }); }
+  Widget _buildGraficoCrescimentoVivo(DocumentReference ref) { return StreamBuilder<QuerySnapshot>(stream: ref.collection('medidas').orderBy('data').snapshots(), builder: (context, snapshot) { if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return _buildEmptyState("Registre medidas na aba Saúde."); List<FlSpot> pontos = []; DateTime inicio = DateTime.parse(snapshot.data!.docs.first['data']); for (var doc in snapshot.data!.docs) { final d = doc.data() as Map<String, dynamic>; DateTime dt = DateTime.parse(d['data']); double x = dt.difference(inicio).inDays / 30.0; if (x < 0) x = 0; double y = _mostrarPeso ? (d['peso'] as num).toDouble() : (d['altura'] as num).toDouble(); pontos.add(FlSpot(x, y)); } List<List<FlSpot>> padrao = [[], []]; if (_mostrarPeso && pontos.isNotEmpty) padrao = GrowthStandards.calcularCurvasEsperadas(pesoInicial: pontos.first.y, mesesTotais: (pontos.last.x + 2).ceil()); return Container(height: 220, padding: const EdgeInsets.fromLTRB(0, 20, 20, 0), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 15)]), child: LineChart(LineChartData(gridData: FlGridData(show: true, drawVerticalLine: false, getDrawingHorizontalLine: (v) => FlLine(color: Colors.grey.shade100, strokeWidth: 1)), titlesData: FlTitlesData(show: true, rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)), topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)), bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, interval: 2, getTitlesWidget: (v,m)=>Text("${v.toInt()}m", style: const TextStyle(fontSize: 10, color: Colors.grey))))), borderData: FlBorderData(show: false), lineBarsData: [LineChartBarData(spots: pontos, isCurved: true, color: _mostrarPeso ? const Color(0xFF00695C) : Colors.blue, barWidth: 3, dotData: const FlDotData(show: true), belowBarData: BarAreaData(show: true, color: (_mostrarPeso ? const Color(0xFF00695C) : Colors.blue).withOpacity(0.1))), if (_mostrarPeso) LineChartBarData(spots: padrao[1], isCurved: true, color: Colors.green.withOpacity(0.3), barWidth: 2, dashArray: [5, 5], dotData: const FlDotData(show: false))]))); }); }
   Widget _buildEmptyState(String msg) => Container(height: 100, alignment: Alignment.center, decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(12)), child: Text(msg, style: const TextStyle(fontSize: 10, color: Colors.grey)));
 }

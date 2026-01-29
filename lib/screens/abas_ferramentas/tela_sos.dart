@@ -96,10 +96,10 @@ class TelaSOS extends StatelessWidget {
                   ),
                 ),
 
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                   child: Row(
-                    children: const [
+                    children: [
                       Icon(Icons.medical_services_outlined, color: Colors.grey, size: 20),
                       SizedBox(width: 10),
                       Text("PRIMEIROS SOCORROS", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Colors.grey, letterSpacing: 1.2)),
@@ -186,7 +186,7 @@ class TelaSOS extends StatelessWidget {
                                 ],
                               ),
                             );
-                          }).toList(),
+                          }),
                         ],
                       ),
                     ),

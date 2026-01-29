@@ -51,11 +51,27 @@
       },
       "oauth_client": [
         {
+          "client_id": "85796774768-2nibr5k4cs1aogveo2eu4caf5mb8a9tk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.leolr.zelo",
+            "certificate_hash": "fb6ff3c159315df329e6e543056cf263a1f637de"
+          }
+        },
+        {
           "client_id": "85796774768-2ud9qsq4vf4nmcu5i4jsdtfu8molfer3.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.leolr.zelo",
             "certificate_hash": "8cbdeabb2c20cc18c5957372b5ab18e98c32a19b"
+          }
+        },
+        {
+          "client_id": "85796774768-ake6e2i55dr6ht15c6fum0ei84bv24l2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.leolr.zelo",
+            "certificate_hash": "037da9ee3f3368d50ca0a8a898662558f300bf94"
           }
         },
         {

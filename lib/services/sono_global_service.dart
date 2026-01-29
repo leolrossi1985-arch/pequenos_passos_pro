@@ -2,8 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'bebe_service.dart'; 
+// import 'package:cloud_firestore/cloud_firestore.dart'; // REMOVIDO: Service não salva mais no banco
+// import 'bebe_service.dart'; // REMOVIDO: Não precisa mais ler ref do bebê aqui
 
 class SonoGlobalService {
   static final SonoGlobalService _instance = SonoGlobalService._internal();
@@ -44,11 +44,11 @@ class SonoGlobalService {
           await _player.play(AssetSource('sounds/$arquivo'));
           _iniciarContagemRegressiva();
         } catch (e) {
-          print("Erro player: $e");
+          debugPrint("Erro player: $e");
         }
       }
     } catch (e) {
-      print("Erro geral áudio: $e");
+      debugPrint("Erro geral áudio: $e");
     }
   }
 
@@ -101,11 +101,9 @@ class SonoGlobalService {
   DateTime? _inicioSono;
   Timer? _timerSono;
 
-  // --- NOVO MÉTODO PARA A TIMELINE VISUAL ---
   DateTime? getInicioSonoAtual() {
     return _inicioSono;
   }
-  // ------------------------------------------
 
   Future<void> iniciarSono() async {
     if (dormindoNotifier.value || amamentandoNotifier.value) return;
@@ -116,30 +114,18 @@ class SonoGlobalService {
     _iniciarTickerSono();
   }
 
+  // CORREÇÃO: Removemos o salvamento no banco daqui.
+  // Apenas para o timer e limpa o estado.
   Future<void> pararSono() async {
     if (!dormindoNotifier.value || _inicioSono == null) return;
-    _timerSono?.cancel();
-    final fim = DateTime.now();
-    final diferenca = fim.difference(_inicioSono!);
     
-    if (diferenca.inSeconds > 0) { 
-      String duracao = _formatarDiferenca(diferenca);
-      final ref = await BebeService.getRefBebeAtivo();
-      if (ref != null) {
-        await ref.collection('rotina').add({
-          'tipo': 'sono',
-          'duracao_segundos': diferenca.inSeconds,
-          'duracao_fmt': duracao,
-          'data': _inicioSono!.toIso8601String(),
-          'fim': fim.toIso8601String(),
-          'criado_em': FieldValue.serverTimestamp()
-        });
-      }
-    }
-
+    _timerSono?.cancel();
+    
+    // Limpeza de estado
     _inicioSono = null;
     dormindoNotifier.value = false;
     tempoSonoNotifier.value = "00:00";
+    
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('inicio_sono');
   }
@@ -175,32 +161,17 @@ class SonoGlobalService {
     _iniciarTickerMamada();
   }
 
+  // CORREÇÃO: Removemos o salvamento no banco daqui.
   Future<void> pararMamada() async {
     if (!amamentandoNotifier.value || _inicioMamada == null) return;
+    
     _timerMamada?.cancel();
-    final fim = DateTime.now();
-    final diferenca = fim.difference(_inicioMamada!);
-
-    if (diferenca.inSeconds > 0) {
-      String duracao = _formatarDiferenca(diferenca);
-      String ladoTexto = ladoMamadaNotifier.value == 'E' ? 'Esquerdo' : 'Direito';
-      final ref = await BebeService.getRefBebeAtivo();
-      if (ref != null) {
-        await ref.collection('rotina').add({
-          'tipo': 'mamada',
-          'lado': ladoTexto,
-          'duracao_segundos': diferenca.inSeconds,
-          'duracao_fmt': duracao,
-          'data': _inicioMamada!.toIso8601String(),
-          'fim': fim.toIso8601String(),
-          'criado_em': FieldValue.serverTimestamp()
-        });
-      }
-    }
-
+    
+    // Limpeza de estado
     _inicioMamada = null;
     amamentandoNotifier.value = false;
     tempoMamadaNotifier.value = "00:00";
+    
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('inicio_mamada');
     await prefs.remove('lado_mamada');

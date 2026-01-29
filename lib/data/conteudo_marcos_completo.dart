@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 
 // BASE DE DADOS DE MARCOS DO DESENVOLVIMENTO
 // Fontes: CDC (Learn the Signs. Act Early) 2023 & SBP.

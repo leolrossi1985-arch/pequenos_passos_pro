@@ -1,7 +1,10 @@
 import 'dart:io';
 import 'dart:ui'; 
+import 'dart:convert'; // Para Base64
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'; // Para kIsWeb
+
 import '../services/pdf_service.dart';
 import '../services/bebe_service.dart'; // Importante para carregar dados
 
@@ -25,7 +28,6 @@ class _TelaSaudeState extends State<TelaSaude> with SingleTickerProviderStateMix
   // Variáveis do bebê
   String _nomeBebe = "do Bebê";
   String? _fotoBebe;
-  bool _temBebe = false;
 
   @override
   void initState() {
@@ -49,17 +51,43 @@ class _TelaSaudeState extends State<TelaSaude> with SingleTickerProviderStateMix
           String nomeCompleto = dados['nome'];
           _nomeBebe = "de ${nomeCompleto.split(' ')[0]}"; 
           _fotoBebe = dados['fotoUrl'];
-          _temBebe = true;
         });
       }
     }
   }
 
+  // --- LÓGICA DE IMAGEM HÍBRIDA (IGUAL ÀS OUTRAS TELAS) ---
+  // --- LÓGICA DE IMAGEM HÍBRIDA CORRIGIDA ---
   ImageProvider? _getImagemPerfil() {
-    if (_fotoBebe != null && _fotoBebe!.isNotEmpty) {
-      if (kIsWeb) return NetworkImage(_fotoBebe!);
-      return FileImage(File(_fotoBebe!));
+    if (_fotoBebe == null || _fotoBebe!.isEmpty) return null;
+
+    // 1. Web ou URL (http)
+    if (kIsWeb || _fotoBebe!.startsWith('http')) {
+      return NetworkImage(_fotoBebe!);
     }
+
+    // 2. Base64 (Texto Longo)
+    // Caminhos de arquivo raramente passam de 200 caracteres.
+    // Uma foto em Base64 tem milhares. Essa é a melhor forma de distinguir.
+    if (_fotoBebe!.length > 200) {
+       try {
+         Uint8List bytes = base64Decode(_fotoBebe!);
+         return MemoryImage(bytes);
+       } catch (e) {
+         debugPrint("Erro ao decodificar imagem Base64: $e");
+       }
+    }
+
+    // 3. Arquivo Local (Caminho curto)
+    try {
+      final file = File(_fotoBebe!);
+      if (file.existsSync()) {
+        return FileImage(file);
+      }
+    } catch (e) {
+      // Ignora erros de arquivo não encontrado
+    }
+    
     return null;
   }
 
@@ -97,7 +125,7 @@ class _TelaSaudeState extends State<TelaSaude> with SingleTickerProviderStateMix
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Container(
-                  color: Colors.white.withOpacity(0.85),
+                  color: Colors.white.withValues(alpha: 0.85),
                   padding: EdgeInsets.fromLTRB(0, MediaQuery.of(context).padding.top + 10, 0, 15),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -128,11 +156,11 @@ class _TelaSaudeState extends State<TelaSaude> with SingleTickerProviderStateMix
                                 Material(
                                   color: Colors.transparent,
                                   child: InkWell(
-                                    onTap: () async { try { await PdfService.gerarRelatorioMedico(); } catch (e) {} },
+                                    onTap: () async { try { await PdfService.gerarRelatorioMedico(); } catch (e) { debugPrint("Erro PDF: $e"); } },
                                     borderRadius: BorderRadius.circular(30),
                                     child: Container(
                                       padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: Colors.grey.withOpacity(0.2)), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)]),
+                                      decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: Colors.grey.withValues(alpha: 0.2)), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 5)]),
                                       child: const Icon(Icons.print_rounded, color: Colors.teal, size: 20),
                                     ),
                                   ),
@@ -179,7 +207,7 @@ class _TelaSaudeState extends State<TelaSaude> with SingleTickerProviderStateMix
                           indicator: BoxDecoration(
                             color: Colors.white, 
                             borderRadius: BorderRadius.circular(21),
-                            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2))]
+                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 8, offset: const Offset(0, 2))]
                           ),
                           indicatorSize: TabBarIndicatorSize.tab,
                           dividerColor: Colors.transparent,
